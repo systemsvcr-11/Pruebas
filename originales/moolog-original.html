@@ -1,0 +1,2157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modulo Logistica - Control de Producción</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Iconos de Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 font-sans flex h-screen overflow-hidden text-gray-800">
+
+    <!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-6 mx-4">
+            <div class="text-center space-y-2">
+                <div class="inline-flex bg-indigo-100 p-3 rounded-2xl text-indigo-600 mb-2">
+                    <i data-lucide="package" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">Ingresar a MooLog!</h2>
+                <p class="text-sm text-gray-500">Introduce tus credenciales</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo electronico</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="w-5 h-5 text-gray-400 absolute left-3 top-2.5"></i>
+                        <input type="text" id="login-user" class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ej. admin">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
+                    <div class="relative">
+                        <i data-lucide="lock" class="w-5 h-5 text-gray-400 absolute left-3 top-2.5"></i>
+                        <input type="password" id="login-pass" class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="••••">
+                    </div>
+                </div>
+                <button onclick="intentarLogin()" id="btn-login" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2">
+                    <span>Iniciar Sesión</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE ACCESO DENEGADO / NO DISPONIBLE -->
+    <div id="denied-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center space-y-6 mx-4">
+            <div class="inline-flex bg-rose-100 p-4 rounded-2xl text-rose-600">
+                <i data-lucide="shield-alert" class="w-10 h-10"></i>
+            </div>
+            <div class="space-y-2">
+                <h2 class="text-2xl font-bold text-slate-900">Módulo no disponible</h2>
+                <p class="text-sm text-gray-500">
+                    Tu usuario (<span id="denied-user-email" class="font-semibold text-slate-700"></span>) no cuenta con permisos para acceder a este módulo.
+                </p>
+            </div>
+            <div class="pt-2">
+                <!-- Botón seguro: Regresa a la ventana anterior o a tu URL real del Hub -->
+                <button onclick="volverAlMenu()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                    <span>Volver al Menú Principal</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE CARGA (LOADING) -->
+    <div id="loading-screen" class="fixed inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-50 hidden">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mb-4"></div>
+        <p class="text-white text-sm font-semibold">Actualizando Datos...</p>
+    </div>
+
+    <!-- 1. BARRA LATERAL DE NAVEGACIÓN -->
+    <aside class="w-64 bg-slate-900 text-slate-100 flex flex-col justify-between hidden md:flex">
+        <div>
+            <div class="p-6 border-b border-slate-800 flex items-center space-x-3">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                    <i data-lucide="package"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none">MooLog!</h1>
+                    <span class="text-xs text-slate-400">Control de Logistica</span>
+                </div>
+            </div>
+            <nav class="p-4 space-y-2">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span>Panel de Control</span>
+                </button>
+                <button onclick="switchTab('programacion')" id="nav-programacion" class="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-100">
+                    <i data-lucide="calendar" class="w-5 h-5"></i>
+                    <span>Programación Semanal</span>
+                </button>
+                <button onclick="switchTab('historico')" id="nav-historico" class="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-100">
+                    <i data-lucide="trending-up" class="w-5 h-5"></i>
+                    <span>Histórico de Rangos</span>
+                </button>
+                <button onclick="switchTab('calculadora')" id="nav-calculadora" class="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-100">
+                    <i data-lucide="calculator" class="w-5 h-5"></i>
+                    <span>Calculadora de Rendimiento</span>
+                </button>
+                <button onclick="switchTab('calc-insumos')" id="nav-calc-insumos" class="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-100">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                    <span>Calculadora de Insumos</span>
+                </button>
+                <button onclick="switchTab('vida-util')" id="nav-vida-util" class="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-100">
+                    <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                    <span>Estado de Vida Útil</span>
+                </button>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-800 flex flex-col space-y-3 text-sm">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-indigo-400" id="user-avatar">U</div>
+                <div>
+                    <p class="font-medium text-slate-200" id="user-display-name">Usuario</p>
+                    <span class="text-xs text-slate-500 inline-block px-2 py-0.5 rounded-full bg-slate-800 font-bold" id="user-display-role">Rol</span>
+                </div>
+            </div>
+            <button onclick="cerrarSesion()" class="w-full text-left text-xs text-rose-400 hover:text-rose-300 flex items-center space-x-2 pt-2 border-t border-slate-800">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+                <span>Cerrar Sesión</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- 2. CONTENIDO PRINCIPAL -->
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3 md:hidden">
+                <span class="font-bold text-lg text-slate-900">MooLog!</span>
+            </div>
+            <div class="flex items-center space-x-2 text-sm text-gray-500">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+                <span id="current-date">Fecha de producción: --</span>
+            </div>
+            <div>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800">
+                    <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-400"></span>
+                    Conectado
+                </span>
+            </div>
+        </header>
+
+        <div class="p-4 md:p-6 w-full space-y-6">
+        
+            <!-- PESTAÑA A: PANEL DE CONTROL (DASHBOARD) -->
+            <section id="tab-dashboard" class="space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Panel de Control</h2>
+                    <p class="text-gray-500 text-sm">Resumen de producción real recolectada y métricas de mermas.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
+                        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg"><i data-lucide="activity"></i></div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-medium">Órdenes Planificadas</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-programadas">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
+                        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg"><i data-lucide="check-circle"></i></div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-medium">Producciones Guardadas</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-realizadas">0</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="alert-triangle"></i></div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-medium">Alertas de Desviación</p>
+                            <h3 class="text-2xl font-bold text-amber-600" id="dash-alertas">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historial con Filtros de Rango y Fecha de Producción -->
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <div class="px-5 py-4 border-b border-gray-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-gray-900 text-base">Historial de Producción Real</h3>
+                            <p class="text-xs text-gray-400">Trazabilidad completa con mermas y reducciones en porcentaje (%).</p>
+                        </div>
+                        
+                        <!-- FILTROS REALES COMPACTOS CON RANGO DE FECHAS -->
+                        <div class="flex flex-wrap sm:flex-nowrap gap-2 items-center">
+                            <div class="relative w-full sm:w-44">
+                                <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5"></i>
+                                <input type="text" id="filter-real-search" oninput="applyFiltersReal()" placeholder="Buscar producto o ID..." class="pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full bg-white">
+                            </div>
+                            
+                            <select id="filter-real-status" onchange="applyFiltersReal()" class="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700">
+                                <option value="">-- Todos los Rangos --</option>
+                                <option value="Dentro de Rango">Dentro de Rango</option>
+                                <option value="Fuera de Rango Inf">Fuera de Rango Inf</option>
+                                <option value="Fuera de Rango Sup">Fuera de Rango Sup</option>
+                            </select>
+                        
+                            <!-- Rango de Fechas: Desde / Hasta -->
+                            <div class="flex items-center gap-1">
+                                <input type="date" id="filter-real-date-start" onchange="applyFiltersReal()" class="px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700" title="Fecha Inicio">
+                                <span class="text-xs text-gray-400 font-semibold">-</span>
+                                <input type="date" id="filter-real-date-end" onchange="applyFiltersReal()" class="px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700" title="Fecha Fin">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla Compacta sin forzar scroll horizontal -->
+                    <div class="w-full">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 uppercase tracking-tight text-[11px]">
+                                <tr>
+                                    <th class="px-3 py-3">ID Orden</th>
+                                    <th class="px-3 py-3">Producto</th>
+                                    <th class="px-2 py-3 text-center">Insumo Real</th>
+                                    <th class="px-2 py-3 text-center">PA's</th>
+                                    <th class="px-2 py-3 text-center">% Desecho</th>
+                                    <th class="px-2 py-3 text-center">% Transf.</th>
+                                    <th class="px-2 py-3 text-center">% Reducc.</th>
+                                    <th class="px-3 py-3 text-center">Estado</th>
+                                    <th class="px-3 py-3 text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100" id="produccion-real-rows"></tbody>
+                        </table>
+                    </div>
+                    <!-- Paginación Dashboard -->
+                    <div class="px-5 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 bg-gray-50/50">
+                        <div id="dash-pagination-info">Mostrando 0 de 0 registros</div>
+                        <div class="flex items-center space-x-1" id="dash-pagination-controls">
+                            <!-- Botones generados dinámicamente -->
+                        </div>
+                    </div>                    
+                </div>
+                
+            </section>
+
+            <!-- PESTAÑA F: CONTROL DE VIDA ÚTIL Y ADVERTENCIAS -->
+            <section id="tab-vida-util" class="space-y-6 hidden">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Control de Vida Útil de Lotes</h2>
+                        <p class="text-gray-500 text-sm">Monitoreo dinámico del tiempo de caducidad restante y stock disponible en planta.</p>
+                    </div>
+                    
+                    <!-- Filtros interactivos de búsqueda y semáforo -->
+                    <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                        <div class="relative w-full sm:w-64">
+                            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                            <input type="text" id="filter-vida-search" oninput="filtrarVidaUtil()" placeholder="Buscar PA o producto..." class="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full bg-white">
+                        </div>
+                        <select id="filter-vida-status" onchange="filtrarVidaUtil()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-medium text-gray-700">
+                            <option value="">-- Todos los Estados --</option>
+                            <option value="EN VIDA UTIL">En Vida Útil (Verde)</option>
+                            <option value="PROXIMO A VENCER">Próximo a Vencer (Amarillo)</option>
+                            <option value="FUERA DE RANGO DE VIDA">Fuera de Rango / Vencido (Rojo)</option>
+                            <option value="SIN FECHA">Sin Fecha / Datos Incompletos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tabla interactiva con preservación de colores -->
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-slate-900 text-white font-semibold text-left">
+                                <tr>
+                                    <th class="px-6 py-4">Nombre de la PA</th>
+                                    <th class="px-6 py-4 text-center">Vida Útil Ideal</th>
+                                    <th class="px-6 py-4">Fecha del Lote</th>
+                                    <th class="px-6 py-4 text-center">Stock Físico</th>
+                                    <th class="px-6 py-4">Fecha Evaluación</th>
+                                    <th class="px-6 py-4">Estado</th>
+                                    <th class="px-6 py-4">Tiempo Restante</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="vida-util-rows">
+                                <!-- Filas dinámicas cargadas desde JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <!-- PESTAÑA B: PROGRAMACIÓN SEMANAL -->
+            <section id="tab-programacion" class="space-y-6 hidden">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Programación Semanal</h2>
+                        <p class="text-gray-500 text-sm">Filtra tus lotes por producto, estado o rango de fechas para iniciar o corregir registros.</p>
+                    </div>
+                    
+                    <!-- Contenedor de Filtros (Buscador, Estado y Fechas) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 w-full lg:w-auto">
+                        <!-- Buscador de texto -->
+                        <div class="relative sm:col-span-2 lg:col-span-2">
+                            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                            <input type="text" id="filter-prog-search" oninput="applyFiltersProg()" placeholder="Buscar producto o ID..." class="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full bg-white">
+                        </div>
+            
+                        <!-- Filtro de Estado -->
+                        <div>
+                            <select id="filter-prog-status" onchange="applyFiltersProg()" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-medium text-gray-700">
+                                <option value="">-- Todos los Estados --</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Incompleto">Incompleto</option>
+                                <option value="Registrado">Registrado</option>
+                            </select>
+                        </div>
+            
+                        <!-- Filtro de Fechas -->
+                        <div>
+                            <input type="date" id="filter-prog-date-start" onchange="applyFiltersProg()" class="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs bg-white text-gray-700" title="Fecha Inicio">
+                        </div>
+                        <div>
+                            <input type="date" id="filter-prog-date-end" onchange="applyFiltersProg()" class="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs bg-white text-gray-700" title="Fecha Fin">
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50 text-gray-500 font-medium text-left">
+                                <tr>
+                                    <th class="px-6 py-3">Fecha</th>
+                                    <th class="px-6 py-3">ID Orden</th>
+                                    <th class="px-6 py-3">Producto</th>
+                                    <th class="px-6 py-3">Insumo Principal</th>
+                                    <th class="px-6 py-3">Planificado</th>
+                                    <th class="px-6 py-3">Estado Registro</th>
+                                    <th class="px-6 py-3 text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="programacion-rows"></tbody>
+                        </table>
+                    </div>
+                    <!-- Paginación Programación -->
+                    <div class="px-5 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 bg-gray-50/50">
+                        <div id="prog-pagination-info">Mostrando 0 de 0 registros</div>
+                        <div class="flex items-center space-x-1" id="prog-pagination-controls">
+                            <!-- Botones generados dinámicamente -->
+                        </div>
+                    </div>                    
+                </div>
+            </section>
+
+
+            <!-- PESTAÑA C: HISTÓRICO -->
+            <section id="tab-historico" class="space-y-6 hidden">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Histórico de Rangos de Referencia</h2>
+                    <p class="text-gray-500 text-sm">Rendimientos mínimos y máximos esperados por unidad de insumo.</p>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50 text-gray-500 font-medium text-left">
+                                <tr>
+                                    <th class="px-6 py-3">Producto</th>
+                                    <th class="px-6 py-3">Insumo de Origen</th>
+                                    <th class="px-6 py-3">Rendimiento Mínimo</th>
+                                    <th class="px-6 py-3">Rendimiento Máximo</th>
+                                    <th class="px-6 py-3">Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="historico-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA E: CALCULADORA INVERSA DE INSUMOS -->
+            <section id="tab-calc-insumos" class="space-y-6 hidden">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Calculadora de Insumos Requeridos</h2>
+                    <p class="text-gray-500 text-sm">Determina cuánta materia prima necesitas solicitar para alcanzar una meta específica de PA's producidas.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Columna de Entrada (Formulario) -->
+                    <div class="lg:col-span-1 bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4 h-fit">
+                        <h3 class="font-bold text-gray-800 flex items-center space-x-2 border-b border-slate-100 pb-2">
+                            <span class="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+                            <span>Configurar Meta</span>
+                        </h3>
+
+                        <!-- Buscador de Producto -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Seleccionar Producto (PA)</label>
+                            <div class="relative">
+                                <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                                <input type="text" id="ins-search-producto" oninput="filtrarProductosInsumos()" onfocus="mostrarDropdownInsumos()" placeholder="Escribe para buscar PA..." autocomplete="off" class="w-full border border-gray-300 rounded-lg pl-9 pr-8 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                                <button type="button" onclick="toggleDropdownInsumos()" class="absolute right-2 top-2 text-gray-450 hover:text-gray-600">
+                                    <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Lista desplegable flotante -->
+                            <div id="ins-dropdown-productos" class="absolute z-30 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden divide-y divide-slate-50"></div>
+                        </div>
+
+                        <!-- Cantidad de PA's deseadas -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Cantidad de PA's a Producir</label>
+                            <div class="relative">
+                                <input type="number" id="ins-cantidad-pas" oninput="ejecutarCalculoInverso()" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50 text-slate-500" placeholder="0" disabled>
+                                <span class="absolute right-3 top-2.5 text-gray-400 text-sm">PA's</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna de Resultados (Lista de Insumos Calculados) -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col relative overflow-hidden">
+                        <div class="absolute inset-x-0 top-0 h-2 bg-indigo-600"></div>
+                        
+                        <div class="space-y-2 border-b border-slate-100 pb-3">
+                            <h3 class="font-bold text-gray-800 flex items-center space-x-2">
+                                <i data-lucide="shopping-bag" class="w-5 h-5 text-indigo-600"></i>
+                                <span>Explosión de Materia Prima Requerida</span>
+                            </h3>
+                            <p class="text-xs text-gray-400">Lista detallada de insumos necesarios calculada en base a los rangos históricos del producto.</p>
+                        </div>
+
+                        <!-- Contenedor dinámico de las tarjetas de cada insumo -->
+                        <div id="ins-resultados-container" class="py-4 space-y-3 flex-1 overflow-y-auto max-h-[350px]">
+                            <div class="text-center py-12 text-slate-400 italic text-sm">
+                                Selecciona una PA e ingresa la cantidad de producción deseada para ver los insumos requeridos.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- PESTAÑA D: CALCULADORA DE RENDIMIENTOS -->
+            <section id="tab-calculadora" class="space-y-6 hidden">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Calculadora de Rendimiento Predictivo</h2>
+                    <p class="text-gray-500 text-sm">Estima cuántas PA's se pueden producir según la cantidad de materia prima disponible en almacén.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Columna de Entradas (Formulario de Configuración Optimizado) -->
+                    <div class="lg:col-span-1 bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4 h-fit">
+                        <h3 class="font-bold text-gray-800 flex items-center space-x-2 border-b border-slate-100 pb-2">
+                            <span class="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+                            <span>Configurar Simulación</span>
+                        </h3>
+
+                        <!-- Búsqueda Avanzada y Selección de Producto (Filtro por escritura) -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Seleccionar Producto (PA)</label>
+                            <div class="relative">
+                                <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                                <input type="text" id="calc-search-producto" oninput="filtrarProductosCalculadora()" onfocus="mostrarDropdownCalculadora()" placeholder="Escribe para buscar PA..." autocomplete="off" class="w-full border border-gray-300 rounded-lg pl-9 pr-8 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                                <button type="button" onclick="toggleDropdownCalculadora()" class="absolute right-2 top-2 text-gray-450 hover:text-gray-600">
+                                    <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Lista desplegable flotante oculta por defecto -->
+                            <div id="calc-dropdown-productos" class="absolute z-30 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden divide-y divide-slate-50">
+                                <!-- Items generados dinámicamente -->
+                            </div>
+                        </div>
+
+                        <!-- Selección del Insumo Asociado (Desplegable dinámico no duplicado) -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Insumo a Calcular</label>
+                            <select id="calc-select-insumo" onchange="seleccionarInsumoEspecifico()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50 text-slate-500" disabled>
+                                <option value="">-- Elige primero una PA --</option>
+                            </select>
+                        </div>
+
+                        <!-- Cantidad a Calcular -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Cantidad de Insumo a Procesar</label>
+                            <div class="relative">
+                                <input type="number" id="calc-cantidad-insumo" oninput="ejecutarCalculoRendimiento()" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50 text-slate-500" placeholder="0.00" disabled>
+                                <span class="absolute right-3 top-2.5 text-gray-400 text-sm" id="calc-txt-unidad-input">Kg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna de Resultados (Salida Visual) -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                        <div class="absolute inset-x-0 top-0 h-2 bg-indigo-600"></div>
+                        
+                        <div class="space-y-4">
+                            <h3 class="font-bold text-gray-800 flex items-center space-x-2 pt-2">
+                                <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                                <span>Resultado de la Estimación</span>
+                            </h3>
+                            <p class="text-xs text-gray-400 leading-relaxed">Este cálculo toma como base los rendimientos históricos registrados para este producto específico.</p>
+                        </div>
+
+                        <!-- Caja Central del Rango Estimado -->
+                        <div class="my-8 text-center bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-inner">
+                            <span class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Producción Estimada Óptima</span>
+                            <div class="flex items-center justify-center space-x-4">
+                                <div class="text-slate-800">
+                                    <span class="block text-5xl font-black" id="calc-res-min">0</span>
+                                    <span class="text-xs font-semibold text-slate-400">Mínimo Esperado</span>
+                                </div>
+                                <span class="text-4xl font-extrabold text-slate-300">a</span>
+                                <div class="text-slate-800">
+                                    <span class="block text-5xl font-black" id="calc-res-max">0</span>
+                                    <span class="text-xs font-semibold text-slate-400">Máximo Esperado</span>
+                                </div>
+                            </div>
+                            <span class="inline-block mt-4 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 font-extrabold text-sm" id="calc-badge-unidades">
+                                0 PA's en total
+                            </span>
+                        </div>
+
+                        <!-- Ficha Técnica de Tasas de Conversión -->
+                        <div class="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-xs">
+                            <div class="bg-amber-50/50 p-3 rounded-lg border border-amber-100 text-amber-800">
+                                <span class="block font-semibold uppercase text-[10px] text-amber-600 tracking-wider">Tasa Mínima Histórica</span>
+                                <p class="font-bold text-sm mt-0.5" id="calc-ref-inf">0.00 u/Kg</p>
+                            </div>
+                            <div class="bg-emerald-50/50 p-3 rounded-lg border border-emerald-100 text-emerald-800">
+                                <span class="block font-semibold uppercase text-[10px] text-emerald-600 tracking-wider">Tasa Máxima Histórica</span>
+                                <p class="font-bold text-sm mt-0.5" id="calc-ref-sup">0.00 u/Kg</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- PESTAÑA REGISTRO: CABECERA Y FORMULARIO -->
+            <section id="tab-registro" class="space-y-6 hidden">
+                <!-- NUEVA CABECERA ULTRA VISIBLE CON TARJETA DE IDENTIFICACIÓN -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <div class="flex items-center space-x-4">
+                        <!-- Botón de atrás estilizado -->
+                        <button onclick="cancelarRegistro()" class="p-3 hover:bg-slate-100 rounded-xl text-gray-500 transition-colors border border-gray-200 shadow-sm" title="Volver">
+                            <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                        </button>
+                        <div>
+                            <span class="text-xs font-bold text-indigo-600 uppercase tracking-widest" id="registro-titulo-accion">Registrar Producción</span>
+                            <h2 class="text-3xl font-black text-slate-900 tracking-tight mt-0.5" id="registro-lote-id">ORD-XXX</h2>
+                        </div>
+                    </div>
+
+                    <!-- Tarjetas de datos clave (Producto e Insumo) -->
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                        <!-- Tarjeta Producto -->
+                        <div class="bg-slate-900 text-white px-5 py-3 rounded-xl flex items-center space-x-3 shadow-md min-w-[220px]">
+                            <div class="bg-slate-800 p-2 rounded-lg text-indigo-400">
+                                <i data-lucide="package" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Empacado</span>
+                                <span class="font-extrabold text-sm block leading-tight" id="registro-txt-producto">Cargando...</span>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta Insumo Principal -->
+                        <div class="bg-indigo-600 text-white px-5 py-3 rounded-xl flex items-center space-x-3 shadow-md min-w-[220px]">
+                            <div class="bg-indigo-700 p-2 rounded-lg text-indigo-200">
+                                <i data-lucide="leaf" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Insumo</span>
+                                <span class="font-extrabold text-sm block leading-tight" id="registro-txt-insumo">Cargando...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grilla de Contenido Principal del Formulario -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Columna Formulario (Izquierda) -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Bloque 1: Insumos y Unidades Logradas -->
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                            <h3 class="font-bold text-gray-800 flex items-center space-x-2">
+                                <span class="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+                                <span>1. Insumos y PA's producidas</span>
+                            </h3>
+
+                            <!-- BANNER INFORMATIVO DE TRANSFERENCIAS RECIBIDAS (APARECE DINÁMICAMENTE) -->
+                            <div id="banner-transferencias-recibidas" class="p-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm text-sm text-indigo-800 flex items-center justify-between hidden">
+                                <div class="flex items-center space-x-3">
+                                    <div class="bg-indigo-600 text-white p-2 rounded-lg shadow-sm">
+                                        <i data-lucide="arrow-down-left" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold">Transferencias de Insumo Cargadas</p>
+                                        <p class="text-xs text-indigo-650" id="texto-transferencias-detallado">Esta orden recibió un total de 0.00 kg de insumo.</p>
+                                    </div>
+                                </div>
+                                <span class="text-lg font-black text-indigo-700" id="badge-transferencias-total">+0.00 Kg</span>
+                            </div>
+
+                            <!-- Inputs de Insumos -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                <!-- 1. Insumo Solicitado -->
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 h-8 flex items-end">Insumo Solicitado</label>
+                                    <div class="relative">
+                                        <input type="number" id="insumo-proveedor" step="0.01" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="0.00">
+                                        <span class="absolute right-3 top-2.5 text-gray-400 text-sm" id="unidad-insumo-1">Kg</span>
+                                    </div>
+                                </div>
+                            
+                                <!-- 2. Insumo Real Recibido -->
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 h-8 flex items-end">Insumo Real Recibido</label>
+                                    <div class="relative">
+                                        <input type="number" id="insumo-real" step="0.01" oninput="calcularRendimiento()" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="0.00">
+                                        <span class="absolute right-3 top-2.5 text-gray-400 text-sm" id="unidad-insumo-2">Kg</span>
+                                    </div>
+                                </div>
+                            
+                                <!-- 3. Campo Condicional: Peso Total Entrada -->
+                                <div id="box-peso-kilos" class="flex flex-col hidden">
+                                    <label class="block text-xs font-semibold text-indigo-600 uppercase mb-1 h-8 flex items-end">Peso Total Entrada</label>
+                                    <div class="relative">
+                                        <input type="number" id="insumo-peso-kg" step="0.01" oninput="calcularRendimiento()" autocomplete="off" class="w-full border border-indigo-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-indigo-50/40" placeholder="0.00">
+                                        <span class="absolute right-3 top-2.5 text-indigo-500 font-bold text-sm">Kg</span>
+                                    </div>
+                                </div>
+                            
+                                <!-- 4. Insumo Reducido -->
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 h-8 flex items-end">Insumo Reducido (Opcional)</label>
+                                    <div class="relative">
+                                        <input type="number" id="insumo-reducido" step="0.01" oninput="calcularRendimiento()" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="0.00">
+                                        <span class="absolute right-3 top-2.5 text-gray-400 text-sm" id="unidad-insumo-3">Kg</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Input de Unidades Logradas (PA's) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">PA's producidas</label>
+                                    <div class="relative">
+                                        <input type="number" id="empacados-logrados" oninput="calcularRendimiento()" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="0">
+                                        <span class="absolute right-3 top-2.5 text-gray-400 text-sm">PA's</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bloque 2: Registro de Mermas Dinámicas -->
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                                <h3 class="font-bold text-gray-800 flex items-center space-x-2">
+                                    <span class="w-1.5 h-6 bg-red-500 rounded-full"></span>
+                                    <span>2. Registro de Mermas</span>
+                                </h3>
+                                <!-- BOTONES DE ACCIÓN DE MERMAS -->
+                                <div class="flex items-center space-x-2">
+                                    <button type="button" id="btn-no-merma" onclick="marcarSinMermas()" class="text-xs bg-slate-100 hover:bg-slate-250 text-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors border border-slate-200">
+                                        <i data-lucide="check" class="w-4 h-4"></i>
+                                        <span id="txt-btn-no-merma">No hay Mermas</span>
+                                    </button>
+                                    <button type="button" id="btn-add-merma" onclick="agregarMermaRow()" class="text-xs bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors">
+                                        <i data-lucide="plus" class="w-4 h-4"></i>
+                                        <span>Añadir Merma</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Mensaje de confirmación visual -->
+                            <div id="msg-sin-mermas" class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl flex items-center space-x-2 hidden">
+                                <div class="bg-emerald-600 text-white p-1 rounded-full">
+                                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span>Confirmado: Esta producción se registrará sin mermas en el sistema.</span>
+                            </div>
+
+                            <div class="space-y-3" id="mermas-container"></div>
+                        </div>
+
+                        <!-- Bloque 3: Acciones (Guardar / Cancelar) con protección contra envío de formularios -->
+                        <div class="flex space-x-3 justify-end">
+                            <button type="button" onclick="cancelarRegistro()" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold transition-colors">
+                                Cancelar
+                            </button>
+                            <button type="button" onclick="enviarAlSheets()" id="btn-save-record" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow transition-colors flex items-center space-x-2">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                                <span>Guardar Registro</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Columna Panel Evaluador (Derecha) -->
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center space-y-4 relative overflow-hidden">
+                            <div id="indicador-fondo" class="absolute inset-x-0 top-0 h-2 bg-gray-300"></div>
+
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider pt-2">Estatus de Producción</h4>
+                            
+                            <div class="py-4">
+                                <div class="px-4 py-2.5 rounded-full bg-gray-100 text-gray-600 text-base font-bold inline-block" id="live-estado">
+                                    Esperando Datos
+                                </div>
+                            </div>
+
+                            <hr class="border-gray-100">
+
+                            <!-- Comparativa Predictiva -->
+                            <div class="text-left p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-tight">Cálculo de Eficiencia</p>
+                                <div class="pt-1">
+                                    <p class="text-xs text-gray-400 leading-snug">Con la materia prima ingresada, el rango óptimo es:</p>
+                                    <p class="text-lg font-extrabold text-slate-800 mt-1" id="estimacion-salida">Debieron salir: 0 PA's</p>
+                                </div>
+                            </div>
+
+                            <div class="text-left p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-tight">Reducción de Insumo</p>
+                                <div class="flex items-baseline justify-between pt-1">
+                                    <span class="text-xs text-gray-400">Pérdida por proceso:</span>
+                                    <span class="text-base font-extrabold text-slate-800" id="live-porcentaje-reduccion">0.0%</span>
+                                </div>
+                            </div>
+
+                            <!-- Alerta de Parámetro Desviado -->
+                            <div class="p-3 bg-rose-50 text-rose-700 text-xs rounded-lg text-left hidden" id="alert-warning">
+                                <p class="font-bold flex items-center space-x-1">
+                                    <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                    <span>Fuera de Parámetro</span>
+                                </p>
+                                <p class="mt-1 text-rose-600">Este registro se marcará con desviación y no afectará el histórico global.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+    <!-- Supabase JS SDK -->
+    <!-- INTEGRACIÓN JS, SSO SEGURO Y CONEXIÓN API -->
+    <script>
+      // ================= CONFIGURACIÓN Y ESTADO GLOBAL =================
+      const API_URL = "https://script.google.com/macros/s/AKfycbyn9Gyb5DMK6UVPqY9KZsXVjA_X4HrhT1tHY9zqmAiG_Qzbq0ga1MyWQOYEWFkgmxs4/exec";
+    
+      let rawDatabase = {
+        programacion: [],
+        historico: [],
+        produccionReal: [],
+        mermas: [],
+        vidaUtil: []
+      };
+    
+      let activeUser = null; 
+      let activeOrden = null;
+      let isEditing = false;
+      let pestanaOrigen = 'programacion';
+      const ITEMS_PER_PAGE = 20;
+      let currentDashPage = 1;
+      let currentProgPage = 1;
+      let tieneMermasBloqueadas = false;
+      let productoSeleccionadoCalc = "";
+      let productoSeleccionadoIns = "";
+
+        // ================= INICIALIZACIÓN Y SSO SEGURO =================
+          window.addEventListener('DOMContentLoaded', async () => {
+          if (window.lucide) lucide.createIcons();
+        
+          const dateSpan = document.getElementById('current-date');
+          if (dateSpan) {
+            dateSpan.innerText = `Fecha: ${new Date().toLocaleDateString()}`;
+          }
+        
+          // 1. REVISAR SI VIENE TOKEN SSO EN EL HASH DE LA URL (#sso=...)
+          let ssoUser = null;
+          let ssoPass = null;
+          const hash = window.location.hash;
+        
+          if (hash && hash.includes('sso=')) {
+            try {
+              const rawToken = hash.split('sso=')[1].split('&')[0];
+              const decodedJson = decodeURIComponent(escape(atob(rawToken)));
+              const parsed = JSON.parse(decodedJson);
+        
+              // Verificar que el token no tenga más de 60 segundos de emitido
+              if (Date.now() - parsed.t < 60000) {
+                ssoUser = parsed.u;
+                ssoPass = parsed.p;
+              }
+            } catch (e) {
+              console.warn("Token SSO inválido o corrupto:", e);
+            }
+        
+            // LIMPIAR LA URL INMEDIATAMENTE para que no queden credenciales visibles en el historial
+            history.replaceState(null, document.title, window.location.pathname + window.location.search);
+          }
+        
+          // Fallback a sessionStorage si estuviesen en el mismo origen exacto
+          if (!ssoUser) {
+            ssoUser = sessionStorage.getItem("sso_temp_user");
+            ssoPass = sessionStorage.getItem("sso_temp_pass");
+            sessionStorage.removeItem("sso_temp_user");
+            sessionStorage.removeItem("sso_temp_pass");
+          }
+        
+          // 2. LEER SESIÓN PREVIA GUARDADA LOCALMENTE
+          let savedSession = null;
+          try {
+            const raw = localStorage.getItem('packflow_session');
+            if (raw) savedSession = JSON.parse(raw);
+          } catch (e) {
+            localStorage.removeItem('packflow_session');
+          }
+        
+          // CASO 1: Viene una solicitud SSO desde el Portal
+          if (ssoUser && ssoPass) {
+            // Si la sesión que estaba guardada pertenece a OTRA cuenta distinta, se destruye
+            if (savedSession && savedSession.user?.toLowerCase() !== ssoUser.toLowerCase()) {
+              localStorage.removeItem('packflow_session');
+              savedSession = null;
+              activeUser = null;
+            }
+        
+            // Si coincide con la sesión ya autenticada, ingresar de inmediato sin recargar
+            if (savedSession && savedSession.user?.toLowerCase() === ssoUser.toLowerCase()) {
+              activeUser = savedSession;
+              mostrarPantallaLogin(false);
+              aplicarPermisosRol();
+              await cargarDatosDeSheets();
+              return;
+            }
+        
+            // Si es un usuario nuevo o diferente, autenticar automáticamente contra Apps Script
+            mostrarPantallaLogin(false);
+            const userInput = document.getElementById('login-user');
+            const passInput = document.getElementById('login-pass');
+            if (userInput && passInput) {
+              userInput.value = ssoUser;
+              passInput.value = ssoPass;
+            }
+            await intentarLogin();
+            return;
+          }
+        
+          // CASO 2: Entrada directa sin SSO pero con sesión activa guardada
+          if (savedSession) {
+            activeUser = savedSession;
+            mostrarPantallaLogin(false);
+            aplicarPermisosRol();
+            await cargarDatosDeSheets();
+            return;
+          }
+        
+          // CASO 3: Sin sesión y sin SSO -> Mostrar pantalla de login manual
+          mostrarPantallaLogin(true);
+        });
+    
+        
+            
+      function mostrarPantallaLogin(visible) {
+        const screen = document.getElementById('login-screen');
+        if (!screen) return;
+        if (visible) screen.classList.remove('hidden');
+        else screen.classList.add('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+    
+      // ================= AUTENTICACIÓN (GOOGLE SHEETS) =================
+      async function intentarLogin() {
+        const userInput = document.getElementById('login-user');
+        const passInput = document.getElementById('login-pass');
+        const btn = document.getElementById('btn-login');
+    
+        const user = userInput ? userInput.value.trim() : '';
+        const pass = passInput ? passInput.value.trim() : '';
+    
+        if (!user || !pass) {
+          showToast("Por favor ingresa usuario y contraseña", "error");
+          mostrarPantallaLogin(true);
+          return;
+        }
+    
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = `<span class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white inline-block"></span>`;
+        }
+    
+        try {
+          const response = await fetch(`${API_URL}?action=login&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`);
+          const result = await response.json();
+    
+          if (result.success) {
+            activeUser = { user: result.user, rol: result.rol };
+            localStorage.setItem('packflow_session', JSON.stringify(activeUser));
+            
+            mostrarPantallaLogin(false);
+            showToast(`¡Bienvenido, ${result.user}!`, "success");
+            
+            aplicarPermisosRol();
+            await cargarDatosDeSheets();
+          } else {
+            // Mensaje requerido si las credenciales en Sheets difieren
+            showToast("credenciales no iguales", "error");
+            mostrarPantallaLogin(true);
+          }
+        } catch (err) {
+          console.error("Error al autenticar contra Google Sheets:", err);
+          showToast("credenciales no iguales", "error");
+          mostrarPantallaLogin(true);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>Iniciar Sesión</span>`;
+          }
+        }
+      }
+    
+      function volverAlMenu() {
+        // Coloca aquí el enlace real de tu Portal Corporativo
+        window.location.href = "https://funny-muffin-67cb71.netlify.app/"; 
+      }
+
+      function cerrarSesion() {
+      localStorage.removeItem('packflow_session');
+      activeUser = null;
+      mostrarPantallaLogin(true);
+      const u = document.getElementById('login-user');
+      const p = document.getElementById('login-pass');
+      if (u) u.value = '';
+      if (p) p.value = '';
+    }
+    
+      function aplicarPermisosRol() {
+        if (!activeUser) return;
+        const nameEl = document.getElementById('user-display-name');
+        const roleEl = document.getElementById('user-display-role');
+        const avatarEl = document.getElementById('user-avatar');
+    
+        if (nameEl) nameEl.innerText = activeUser.user;
+        if (roleEl) roleEl.innerText = activeUser.rol;
+        if (avatarEl) avatarEl.innerText = activeUser.user.charAt(0).toUpperCase();
+    
+        const isNormal = activeUser.rol !== "Admin";
+        const saveRecordBtn = document.getElementById('btn-save-record');
+        if (saveRecordBtn) {
+          saveRecordBtn.classList.toggle('hidden', isNormal);
+        }
+      }
+    
+      // ================= CARGA Y NAVEGACIÓN =================
+      async function cargarDatosDeSheets() {
+        mostrarCargando(true);
+        try {
+          const response = await fetch(`${API_URL}?action=getData`);
+          rawDatabase = await response.json();
+          renderAll();
+        } catch (err) {
+          showToast("Error al sincronizar datos de Sheets", "error");
+          console.error(err);
+        } finally {
+          mostrarCargando(false);
+        }
+      }
+    
+      function renderAll() {
+        renderDashboard();
+        renderProgramacion();
+        renderHistorico();
+        inicializarCalculadora();
+        inicializarCalculadoraInsumos();
+        renderVidaUtil();
+      }
+    
+      function switchTab(tabId) {
+        document.querySelectorAll('main > div > section').forEach(sec => sec.classList.add('hidden'));
+        const target = document.getElementById(`tab-${tabId}`);
+        if (target) target.classList.remove('hidden');
+    
+        document.querySelectorAll('aside nav button').forEach(btn => {
+          btn.classList.remove('bg-indigo-600', 'text-white');
+          btn.classList.add('text-slate-400', 'hover:bg-slate-800', 'hover:text-slate-100');
+        });
+        const activeBtn = document.getElementById(`nav-${tabId}`);
+        if (activeBtn) {
+          activeBtn.classList.remove('text-slate-400', 'hover:bg-slate-800', 'hover:text-slate-100');
+          activeBtn.classList.add('bg-indigo-600', 'text-white');
+        }
+      }
+    
+      // ================= FILTROS =================
+      function applyFiltersReal() {
+        currentDashPage = 1;
+        renderDashboard();
+      }
+    
+      function applyFiltersProg() {
+        currentProgPage = 1;
+        renderProgramacion();
+      }
+    
+      // ================= DASHBOARD =================
+      function renderDashboard(searchFilter, dateStart, dateEnd, statusFilter) {
+        const inputSearch = document.getElementById('filter-real-search');
+        const inputStatus = document.getElementById('filter-real-status');
+        const inputStart = document.getElementById('filter-real-date-start');
+        const inputEnd = document.getElementById('filter-real-date-end');
+    
+        const search = searchFilter !== undefined ? searchFilter : (inputSearch ? inputSearch.value.toLowerCase() : '');
+        const status = statusFilter !== undefined ? statusFilter : (inputStatus ? inputStatus.value : '');
+        const start = dateStart !== undefined ? dateStart : (inputStart ? inputStart.value : '');
+        const end = dateEnd !== undefined ? dateEnd : (inputEnd ? inputEnd.value : '');
+    
+        const rows = document.getElementById('produccion-real-rows');
+        if (!rows) return;
+        rows.innerHTML = '';
+    
+        const kpiProg = document.getElementById('dash-programadas');
+        const kpiReal = document.getElementById('dash-realizadas');
+        const kpiAlert = document.getElementById('dash-alertas');
+    
+        if (kpiProg) kpiProg.innerText = rawDatabase.programacion ? rawDatabase.programacion.length : 0;
+        if (kpiReal) kpiReal.innerText = rawDatabase.produccionReal ? rawDatabase.produccionReal.filter(p => parseFloat(p.Insumo_Real || 0) > 0).length : 0;
+        if (kpiAlert) kpiAlert.innerText = rawDatabase.produccionReal ? rawDatabase.produccionReal.filter(p => p.Estado_Rendimiento && p.Estado_Rendimiento.includes('Fuera')).length : 0;
+    
+        if (!rawDatabase?.produccionReal?.length) {
+          rows.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">No hay registros de producción</td></tr>`;
+          renderPaginador('dash', 0, 1, 1);
+          return;
+        }
+    
+        const filteredReal = rawDatabase.produccionReal.filter(p => {
+          const prog = rawDatabase.programacion?.find(pg => pg.ID_Orden === p.ID_Orden);
+          const prodNombre = getProductoPorOrden(p.ID_Orden).toLowerCase();
+          const ordId = (p.ID_Orden || '').toLowerCase();
+    
+          const matchesProduct = ordId.includes(search) || prodNombre.includes(search);
+          const matchesStatus = !status || (p.Estado_Rendimiento === status);
+    
+          let matchesRange = true;
+          if (prog?.Fecha) {
+            const progDate = new Date(prog.Fecha).toISOString().split('T')[0];
+            if (start && progDate < start) matchesRange = false;
+            if (end && progDate > end) matchesRange = false;
+          }
+          return matchesProduct && matchesStatus && matchesRange;
+        });
+    
+        filteredReal.sort((a, b) => {
+          const timeA = a.Timestamp ? new Date(a.Timestamp).getTime() : 0;
+          const timeB = b.Timestamp ? new Date(b.Timestamp).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+    
+          const progA = rawDatabase.programacion?.find(pg => pg.ID_Orden === a.ID_Orden);
+          const progB = rawDatabase.programacion?.find(pg => pg.ID_Orden === b.ID_Orden);
+          const dateA = progA?.Fecha ? new Date(progA.Fecha).getTime() : 0;
+          const dateB = progB?.Fecha ? new Date(progB.Fecha).getTime() : 0;
+          return dateB - dateA;
+        });
+    
+        const totalItems = filteredReal.length;
+        if (totalItems === 0) {
+          rows.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">Sin coincidencias para el criterio seleccionado</td></tr>`;
+          renderPaginador('dash', 0, 1, 1);
+          return;
+        }
+    
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        if (currentDashPage > totalPages) currentDashPage = totalPages;
+        if (currentDashPage < 1) currentDashPage = 1;
+    
+        const startIndex = (currentDashPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+        const itemsPagina = filteredReal.slice(startIndex, endIndex);
+    
+        itemsPagina.forEach(p => {
+          const isAlerta = p.Estado_Rendimiento && p.Estado_Rendimiento.includes('Fuera');
+          const badgeColor = !isAlerta ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200';
+          const isAdmin = activeUser?.rol === "Admin";
+          const actionLabel = isAdmin ? "Editar" : "Ver";
+          const icon = isAdmin ? "edit-3" : "eye";
+    
+          const insReal = parseFloat(p.Insumo_Real) || 0;
+          const unidadItem = (p.Unidad || '').trim().toLowerCase();
+          let masaBaseKg = (unidadItem === 'kg' || unidadItem === 'kilos') 
+            ? insReal 
+            : (parseFloat(p.Peso_Total_Kg || p.PESO_TOTAL_KG || p.peso_total_kg) || 0);
+    
+          let pctBasura = 0;
+          let pctTransf = 0;
+          const mermasOrden = rawDatabase.mermas ? rawDatabase.mermas.filter(m => m.ID_Orden === p.ID_Orden) : [];
+          
+          if (masaBaseKg > 0) {
+            let totalBasura = 0;
+            let totalTransf = 0;
+            mermasOrden.forEach(m => {
+              if (m.Tipo_Merma === 'Basura') totalBasura += parseFloat(m.Cantidad) || 0;
+              if (m.Tipo_Merma === 'Transferencia') totalTransf += parseFloat(m.Cantidad) || 0;
+            });
+            pctBasura = (totalBasura / masaBaseKg) * 100;
+            pctTransf = (totalTransf / masaBaseKg) * 100;
+          }
+    
+          const insRed = parseFloat(p.Insumo_Reducido) || 0;
+          let pctReduccion = (masaBaseKg > 0 && insRed > 0 && insRed < masaBaseKg) 
+            ? (((masaBaseKg - insRed) / masaBaseKg) * 100) 
+            : 0;
+    
+          rows.innerHTML += `
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="px-3 py-2.5 font-bold text-indigo-600 whitespace-nowrap">${p.ID_Orden}</td>
+              <td class="px-3 py-2.5 font-semibold text-slate-800">${getProductoPorOrden(p.ID_Orden)}</td>
+              <td class="px-2 py-2.5 text-center text-slate-600 font-mono">${insReal} ${p.Unidad || ''}</td>
+              <td class="px-2 py-2.5 text-center font-mono font-bold text-slate-800">${p.Empacados_Logrados || 0}</td>
+              <td class="px-2 py-2.5 text-center font-mono font-semibold text-rose-600">${pctBasura > 0 ? pctBasura.toFixed(1) + '%' : '0%'}</td>
+              <td class="px-2 py-2.5 text-center font-mono font-semibold text-indigo-600">${pctTransf > 0 ? pctTransf.toFixed(1) + '%' : '0%'}</td>
+              <td class="px-2 py-2.5 text-center font-mono font-semibold text-amber-600">${pctReduccion > 0 ? pctReduccion.toFixed(1) + '%' : '0%'}</td>
+              <td class="px-3 py-2.5 text-center whitespace-nowrap">
+                <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badgeColor}">
+                  ${p.Estado_Rendimiento || 'Esperando'}
+                </span>
+              </td>
+              <td class="px-3 py-2.5 text-center whitespace-nowrap">
+                <button onclick="cargarFormularioEdicion('${p.ID_Orden}')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 transition-colors inline-flex items-center space-x-1">
+                  <i data-lucide="${icon}" class="w-3 h-3"></i>
+                  <span>${actionLabel}</span>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+    
+        renderPaginador('dash', totalItems, currentDashPage, totalPages, startIndex + 1, endIndex);
+        if (window.lucide) lucide.createIcons();
+      }
+    
+      // ================= PROGRAMACIÓN =================
+      function renderProgramacion(searchFilter, dateStart, dateEnd, statusFilter) {
+        const inputSearch = document.getElementById('filter-prog-search');
+        const inputStatus = document.getElementById('filter-prog-status');
+        const inputStart = document.getElementById('filter-prog-date-start');
+        const inputEnd = document.getElementById('filter-prog-date-end');
+    
+        const search = searchFilter !== undefined ? searchFilter : (inputSearch ? inputSearch.value.toLowerCase() : '');
+        const status = statusFilter !== undefined ? statusFilter : (inputStatus ? inputStatus.value : '');
+        const start = dateStart !== undefined ? dateStart : (inputStart ? inputStart.value : '');
+        const end = dateEnd !== undefined ? dateEnd : (inputEnd ? inputEnd.value : '');
+    
+        const rows = document.getElementById('programacion-rows');
+        if (!rows) return;
+        rows.innerHTML = '';
+    
+        if (!rawDatabase?.programacion) return;
+    
+        const filteredProg = rawDatabase.programacion.filter(p => {
+          const prodName = (p.Producto || '').toLowerCase();
+          const ordId = (p.ID_Orden || '').toLowerCase();
+          const matchesProduct = prodName.includes(search) || ordId.includes(search);
+          
+          let estadoOrden = (p.Estado_Registro || '').trim() || 'Pendiente';
+          let matchesStatus = !status || (estadoOrden.toLowerCase() === status.toLowerCase());
+    
+          let matchesRange = true;
+          if (p.Fecha) {
+            const progDate = new Date(p.Fecha).toISOString().split('T')[0];
+            if (start && progDate < start) matchesRange = false;
+            if (end && progDate > end) matchesRange = false;
+          }
+          return matchesProduct && matchesStatus && matchesRange;
+        });
+    
+        filteredProg.sort((a, b) => {
+          const dateA = a.Fecha ? new Date(a.Fecha).getTime() : 0;
+          const dateB = b.Fecha ? new Date(b.Fecha).getTime() : 0;
+          return dateB - dateA;
+        });
+    
+        const totalItems = filteredProg.length;
+        if (totalItems === 0) {
+          rows.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400">Sin programación para este criterio</td></tr>`;
+          renderPaginador('prog', 0, 1, 1);
+          return;
+        }
+    
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        if (currentProgPage > totalPages) currentProgPage = totalPages;
+        if (currentProgPage < 1) currentProgPage = 1;
+    
+        const startIndex = (currentProgPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+        const itemsPagina = filteredProg.slice(startIndex, endIndex);
+    
+        itemsPagina.forEach(p => {
+          let badgeStyle = 'bg-gray-100 text-gray-700';
+          let btnHTML = '';
+          const isAdmin = activeUser?.rol === "Admin";
+          let estado = (p.Estado_Registro || '').trim() || 'Pendiente';
+    
+          if (estado === 'Pendiente') {
+            badgeStyle = 'bg-slate-100 text-slate-600 border border-slate-200';
+            btnHTML = isAdmin 
+              ? `<button onclick="cargarFormularioNuevo('${p.ID_Orden}')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">Registrar</button>`
+              : `<button onclick="cargarFormularioNuevo('${p.ID_Orden}')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-500 border border-slate-200 transition-colors">Ver</button>`;
+          } else if (estado === 'Incompleto') {
+            badgeStyle = 'bg-amber-100 text-amber-800 border border-amber-200';
+            btnHTML = `<button onclick="cargarFormularioEdicion('${p.ID_Orden}')" class="px-3 py-1.5 text-xs font-bold rounded-lg ${isAdmin ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200' : 'bg-slate-100 text-slate-500'} border transition-colors">${isAdmin ? 'Completar' : 'Ver'}</button>`;
+          } else if (estado === 'Registrado') {
+            badgeStyle = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+            btnHTML = isAdmin
+              ? `<button onclick="cargarFormularioEdicion('${p.ID_Orden}')" class="px-3 py-1.5 text-xs font-bold text-gray-500 rounded-lg border border-gray-200 hover:bg-slate-50 transition-colors">Re-editar</button>`
+              : `<button onclick="cargarFormularioEdicion('${p.ID_Orden}')" class="px-3 py-1.5 text-xs font-bold text-gray-500 rounded-lg border border-gray-200 hover:bg-slate-50 transition-colors">Ver Detalle</button>`;
+          }
+    
+          const displayDate = p.Fecha ? new Date(p.Fecha).toLocaleDateString() : '';
+    
+          rows.innerHTML += `
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-6 py-4 text-gray-500">${displayDate}</td>
+              <td class="px-6 py-4 font-bold text-indigo-600">${p.ID_Orden}</td>
+              <td class="px-6 py-4 font-semibold text-slate-800">${p.Producto}</td>
+              <td class="px-6 py-4 text-gray-500">${p.Insumo_Principal}</td>
+              <td class="px-6 py-4 font-mono">${p.Cantidad_Planificada} ${p.Unidad}</td>
+              <td class="px-6 py-4">
+                <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full ${badgeStyle}">
+                  ${estado}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-center">${btnHTML}</td>
+            </tr>
+          `;
+        });
+    
+        renderPaginador('prog', totalItems, currentProgPage, totalPages, startIndex + 1, endIndex);
+        if (window.lucide) lucide.createIcons();
+      }
+    
+      // ================= PAGINADOR =================
+      function renderPaginador(tipo, total, actual, totalPaginas, inicio = 0, fin = 0) {
+        const infoEl = document.getElementById(`${tipo}-pagination-info`);
+        const controlsEl = document.getElementById(`${tipo}-pagination-controls`);
+        if (!infoEl || !controlsEl) return;
+    
+        if (total === 0) {
+          infoEl.innerText = "Mostrando 0 registros";
+          controlsEl.innerHTML = "";
+          return;
+        }
+    
+        infoEl.innerHTML = `Mostrando <span class="font-bold text-slate-700">${inicio}-${fin}</span> de <span class="font-bold text-slate-700">${total}</span> registros`;
+    
+        if (totalPaginas <= 1) {
+          controlsEl.innerHTML = "";
+          return;
+        }
+    
+        let html = `
+          <button onclick="cambiarPagina('${tipo}', ${actual - 1})" ${actual === 1 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'class="hover:bg-gray-200"'} class="px-2.5 py-1 rounded border border-gray-300 font-semibold text-slate-600">
+            &lt; Ant
+          </button>
+        `;
+    
+        for (let i = 1; i <= totalPaginas; i++) {
+          if (i === 1 || i === totalPaginas || (i >= actual - 1 && i <= actual + 1)) {
+            const activeClass = i === actual 
+              ? 'bg-indigo-600 text-white border-indigo-600 font-bold' 
+              : 'border-gray-300 text-slate-600 hover:bg-gray-100';
+            html += `<button onclick="cambiarPagina('${tipo}', ${i})" class="px-2.5 py-1 rounded border ${activeClass}">${i}</button>`;
+          } else if (i === actual - 2 || i === actual + 2) {
+            html += `<span class="px-1 text-gray-400">...</span>`;
+          }
+        }
+    
+        html += `
+          <button onclick="cambiarPagina('${tipo}', ${actual + 1})" ${actual === totalPaginas ? 'disabled class="opacity-40 cursor-not-allowed"' : 'class="hover:bg-gray-200"'} class="px-2.5 py-1 rounded border border-gray-300 font-semibold text-slate-600">
+            Sig &gt;
+          </button>
+        `;
+    
+        controlsEl.innerHTML = html;
+      }
+    
+      function cambiarPagina(tipo, nuevaPagina) {
+        if (tipo === 'dash') {
+          currentDashPage = nuevaPagina;
+          renderDashboard();
+        } else if (tipo === 'prog') {
+          currentProgPage = nuevaPagina;
+          renderProgramacion();
+        }
+      }
+    
+      function renderHistorico() {
+        const rows = document.getElementById('historico-rows');
+        if (!rows || !rawDatabase?.historico) return;
+        rows.innerHTML = '';
+        rawDatabase.historico.forEach(h => {
+          rows.innerHTML += `
+            <tr>
+              <td class="px-6 py-4 font-semibold text-slate-800">${h.Producto}</td>
+              <td class="px-6 py-4 text-gray-500">${h.Insumo}</td>
+              <td class="px-6 py-4 font-mono font-bold text-amber-600">${h.Rendimiento_Inferior} </td>
+              <td class="px-6 py-4 font-mono font-bold text-emerald-600">${h.Rendimiento_Superior} </td>
+              <td class="px-6 py-4 text-gray-400 text-xs">${h.Unidad}</td>
+            </tr>
+          `;
+        });
+      }
+    
+      // ================= FORMULARIOS DE REGISTRO / EDICIÓN =================
+      function cargarFormularioNuevo(ordenId) {
+        pestanaOrigen = 'programacion';
+        activeOrden = rawDatabase.programacion?.find(p => p.ID_Orden === ordenId);
+        if (!activeOrden) return;
+    
+        isEditing = false;
+        document.getElementById('registro-titulo-accion').innerText = "Registrar Producción Real";
+        prepararFormulario(activeOrden);
+        switchTab('registro');
+      }
+    
+      function cargarFormularioEdicion(ordenId) {
+        const secDash = document.getElementById('tab-dashboard');
+        pestanaOrigen = (secDash && !secDash.classList.contains('hidden')) ? 'dashboard' : 'programacion';
+        
+        activeOrden = rawDatabase.programacion?.find(p => p.ID_Orden === ordenId);
+        if (!activeOrden) return;
+    
+        isEditing = true;
+        document.getElementById('registro-titulo-accion').innerText = "Editar / Completar Producción";
+        prepararFormulario(activeOrden);
+    
+        const realData = rawDatabase.produccionReal?.find(p => p.ID_Orden === ordenId);
+        if (realData) {
+          document.getElementById('insumo-proveedor').value = parseFloat(realData.Insumo_Proveedor) || activeOrden.Cantidad_Planificada;
+          document.getElementById('insumo-real').value = parseFloat(realData.Insumo_Real) || '';
+          document.getElementById('empacados-logrados').value = parseFloat(realData.Empacados_Logrados) || '';
+    
+          const inputPeso = document.getElementById('insumo-peso-kg');
+          if (inputPeso) {
+            const pesoGuardado = realData.Peso_Total_Kg || realData.PESO_TOTAL_KG || realData.peso_total_kg || '';
+            inputPeso.value = pesoGuardado ? parseFloat(pesoGuardado) : '';
+          }
+        }
+    
+        calcularRendimiento();
+        switchTab('registro');
+      }
+    
+      function prepararFormulario(orden) {
+        document.getElementById('registro-lote-id').innerText = orden.ID_Orden;
+        document.getElementById('registro-txt-producto').innerText = orden.Producto;
+        document.getElementById('registro-txt-insumo').innerText = orden.Insumo_Principal;
+        document.getElementById('unidad-insumo-1').innerText = orden.Unidad;
+        document.getElementById('unidad-insumo-2').innerText = orden.Unidad;
+        document.getElementById('unidad-insumo-3').innerText = "KG";
+    
+        const realData = rawDatabase.produccionReal?.find(p => p.ID_Orden === orden.ID_Orden);
+        const isNormal = activeUser?.rol !== "Admin";
+    
+        const insProveedorCargado = realData ? parseFloat(realData.Insumo_Proveedor || 0) : 0;
+        document.getElementById('insumo-proveedor').value = insProveedorCargado > 0 ? insProveedorCargado : orden.Cantidad_Planificada;
+        document.getElementById('insumo-real').value = realData ? (realData.Insumo_Real || '') : '';
+        document.getElementById('empacados-logrados').value = realData ? (realData.Empacados_Logrados || '') : '';
+        document.getElementById('insumo-reducido').value = realData ? (realData.Insumo_Reducido || '') : '';
+    
+        const unidadOrden = (orden.Unidad || '').trim().toLowerCase();
+        const esPorUnidades = unidadOrden !== 'kg' && unidadOrden !== 'kilos';
+        
+        const boxPesoKg = document.getElementById('box-peso-kilos');
+        const inputPesoKg = document.getElementById('insumo-peso-kg');
+    
+        if (esPorUnidades) {
+          boxPesoKg.classList.remove('hidden');
+          const pesoGuardado = realData ? (realData.Peso_Total_Kg || realData.PESO_TOTAL_KG || realData.peso_total_kg || '') : '';
+          inputPesoKg.value = pesoGuardado ? parseFloat(pesoGuardado) : '';
+          inputPesoKg.disabled = isNormal;
+        } else {
+          boxPesoKg.classList.add('hidden');
+          inputPesoKg.value = '';
+        }
+    
+        document.getElementById('insumo-proveedor').disabled = isNormal;
+        document.getElementById('insumo-real').disabled = isNormal;
+        document.getElementById('insumo-reducido').disabled = isNormal;
+        document.getElementById('empacados-logrados').disabled = isNormal;
+        document.getElementById('mermas-container').innerHTML = '';
+    
+        const transRecibida = realData ? parseFloat(realData.Transferencia_Recibida || 0) : 0;
+        const origenTrans = realData ? (realData.Origen_Transferencia || "") : "";
+    
+        const liveEstado = document.getElementById('live-estado');
+        liveEstado.dataset.transRecibida = transRecibida;
+        liveEstado.dataset.origenTrans = origenTrans;
+    
+        const btnNoMerma = document.getElementById('btn-no-merma');
+        const btnAddMerma = document.getElementById('btn-add-merma');
+        const msgSinMermas = document.getElementById('msg-sin-mermas');
+        const mermasContainer = document.getElementById('mermas-container');
+    
+        tieneMermasBloqueadas = false;
+        mermasContainer.classList.remove('hidden');
+        if (msgSinMermas) msgSinMermas.classList.add('hidden');
+    
+        if (isNormal) {
+          if (btnNoMerma) btnNoMerma.classList.add('hidden');
+          if (btnAddMerma) btnAddMerma.classList.add('hidden');
+        } else {
+          if (btnNoMerma) {
+            btnNoMerma.classList.remove('hidden');
+            btnNoMerma.className = "text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors border border-slate-200";
+            document.getElementById('txt-btn-no-merma').innerText = "No hay Mermas";
+          }
+          if (btnAddMerma) btnAddMerma.classList.remove('hidden');
+        }
+    
+        if (realData) {
+          const mermasOrden = rawDatabase.mermas ? rawDatabase.mermas.filter(m => String(m.ID_Orden) === String(orden.ID_Orden)) : [];
+          const tieneMarcaSinMerma = mermasOrden.some(m => m.Tipo_Merma === 'Sin Merma');
+          const mermasReales = mermasOrden.filter(m => m.Tipo_Merma !== 'Sin Merma');
+    
+          if (tieneMarcaSinMerma) {
+            tieneMermasBloqueadas = true;
+            mermasContainer.classList.add('hidden');
+            if (msgSinMermas) msgSinMermas.classList.remove('hidden');
+    
+            if (!isNormal && btnNoMerma) {
+              if (btnAddMerma) btnAddMerma.classList.add('hidden');
+              const txtBtn = document.getElementById('txt-btn-no-merma');
+              if (txtBtn) txtBtn.innerText = "Habilitar Mermas";
+              btnNoMerma.className = "text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors border border-amber-200";
+            }
+          } else if (mermasReales.length > 0) {
+            mermasReales.forEach(m => {
+              agregarMermaRowConValores(m.Tipo_Merma, m.Cantidad, m.Producto_Destino);
+            });
+          }
+        }
+    
+        calcularRendimiento();
+    
+        const banner = document.getElementById('banner-transferencias-recibidas');
+        if (banner) {
+          if (transRecibida > 0) {
+            banner.classList.remove('hidden');
+            document.getElementById('badge-transferencias-total').innerText = `+${transRecibida.toFixed(2)} ${orden.Unidad}`;
+            document.getElementById('texto-transferencias-detallado').innerText = `Insumo transferido de forma automática desde las órdenes: ${origenTrans}`;
+          } else {
+            banner.classList.add('hidden');
+          }
+        }
+        
+        if (window.lucide) lucide.createIcons();
+      }
+    
+      function cancelarRegistro() {
+        switchTab(pestanaOrigen);
+      }
+    
+      // ================= CÁLCULO DE RENDIMIENTOS =================
+      function calcularRendimiento() {
+        const real = parseFloat(document.getElementById('insumo-real').value) || 0;
+        const logrados = parseFloat(document.getElementById('empacados-logrados').value) || 0;
+        const insRedVal = parseFloat(document.getElementById('insumo-reducido').value) || 0;
+        const pesoEntradaVal = parseFloat(document.getElementById('insumo-peso-kg').value) || 0;
+    
+        const unidadOrden = (activeOrden?.Unidad || '').trim().toLowerCase();
+        const esPorUnidades = unidadOrden !== 'kg' && unidadOrden !== 'kilos';
+        const masaEntradaKg = esPorUnidades ? pesoEntradaVal : real;
+    
+        const txtReduccion = document.getElementById('live-porcentaje-reduccion');
+        if (txtReduccion) {
+          if (masaEntradaKg > 0 && insRedVal > 0 && insRedVal < masaEntradaKg) {
+            const pct = (((masaEntradaKg - insRedVal) / masaEntradaKg) * 100).toFixed(1);
+            txtReduccion.innerText = `${pct}%`;
+          } else {
+            txtReduccion.innerText = "0.0% (Sin reducción)";
+          }
+        }
+    
+        const liveEstado = document.getElementById('live-estado');
+        const transRecibida = parseFloat(liveEstado.dataset.transRecibida) || 0;
+        const origenTrans = liveEstado.dataset.origenTrans || "";
+        const totalInsumoAProcesar = real + transRecibida;
+    
+        const background = document.getElementById('indicador-fondo');
+        const alertWarning = document.getElementById('alert-warning');
+        const estimacion = document.getElementById('estimacion-salida');
+    
+        const limites = rawDatabase.historico?.find(h => h.Producto === activeOrden?.Producto);
+    
+        if (totalInsumoAProcesar > 0 && limites) {
+          const min = Math.floor(totalInsumoAProcesar * limites.Rendimiento_Inferior);
+          const max = Math.ceil(totalInsumoAProcesar * limites.Rendimiento_Superior);
+          
+          let textoEstimacion = `Debieron salir: ${min} a ${max} UDS`;
+          if (transRecibida > 0) {
+            textoEstimacion += `<br><span class="text-[10px] text-indigo-600 font-semibold block mt-1">Incluye +${transRecibida} ${activeOrden.Unidad} transferidos de ${origenTrans}</span>`;
+          }
+          estimacion.innerHTML = textoEstimacion;
+        } else {
+          estimacion.innerText = "Debieron salir: 0 unid.";
+        }
+    
+        if (totalInsumoAProcesar <= 0 || logrados <= 0) {
+          liveEstado.innerText = "Esperando Datos";
+          liveEstado.className = "px-4 py-2.5 rounded-full bg-slate-100 text-slate-500 text-base font-bold inline-block";
+          background.className = "absolute inset-x-0 top-0 h-2 bg-slate-300";
+          alertWarning.classList.add('hidden');
+          return;
+        }
+    
+        const actualRend = logrados / totalInsumoAProcesar;
+    
+        if (limites) {
+          if (actualRend < limites.Rendimiento_Inferior) {
+            liveEstado.innerText = "Fuera de Rango Inf";
+            liveEstado.className = "px-4 py-2.5 rounded-full bg-rose-100 text-rose-800 text-base font-bold inline-block border border-rose-200";
+            background.className = "absolute inset-x-0 top-0 h-2 bg-rose-500";
+            alertWarning.classList.remove('hidden');
+          } else if (actualRend > limites.Rendimiento_Superior) {
+            liveEstado.innerText = "Fuera de Rango Sup";
+            liveEstado.className = "px-4 py-2.5 rounded-full bg-amber-100 text-amber-800 text-base font-bold inline-block border border-amber-200";
+            background.className = "absolute inset-x-0 top-0 h-2 bg-amber-500";
+            alertWarning.classList.remove('hidden');
+          } else {
+            liveEstado.innerText = "Dentro de Rango";
+            liveEstado.className = "px-4 py-2.5 rounded-full bg-emerald-100 text-emerald-800 text-base font-bold inline-block border border-emerald-200";
+            background.className = "absolute inset-x-0 top-0 h-2 bg-emerald-500";
+            alertWarning.classList.add('hidden');
+          }
+        }
+      }
+    
+      // ================= GESTIÓN DE MERMAS =================
+      function agregarMermaRow() {
+        agregarMermaRowConValores('Basura', '', '');
+      }
+    
+      function agregarMermaRowConValores(tipo, cantidad, destinoOrdenId) {
+        const container = document.getElementById('mermas-container');
+        const rowId = `merma-row-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        const isNormal = activeUser?.rol !== "Admin";
+    
+        let selectDestinoOptions = '<option value="">-- Selecciona Orden Destino --</option>';
+        rawDatabase.programacion?.forEach(p => {
+          if (p.ID_Orden !== activeOrden?.ID_Orden && 
+              p.Insumo_Principal === activeOrden?.Insumo_Principal && 
+              (p.Estado_Registro !== "Registrado" || p.ID_Orden === destinoOrdenId)) {
+            
+            const selected = p.ID_Orden === destinoOrdenId ? 'selected' : '';
+            selectDestinoOptions += `<option value="${p.ID_Orden}" ${selected}>${p.ID_Orden} - ${p.Producto} (${p.Insumo_Principal})</option>`;
+          }
+        });
+    
+        const inputStyle = isNormal 
+          ? "bg-slate-100 text-slate-500 cursor-not-allowed border-gray-200" 
+          : "bg-white text-slate-800 border-gray-300 focus:ring-2 focus:ring-indigo-500";
+    
+        const selectDestStyle = isNormal
+          ? "bg-slate-100 text-slate-500 cursor-not-allowed border-gray-200"
+          : "bg-white text-slate-800 border-indigo-200 focus:ring-2 focus:ring-indigo-500";
+    
+        const rowHTML = `
+          <div id="${rowId}" class="flex flex-col md:flex-row gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-200 relative merma-row-item">
+            ${!isNormal ? `
+            <button type="button" onclick="eliminarMermaRow('\${rowId}')" class="absolute top-2 right-2 md:relative md:top-auto md:right-auto md:mb-1.5 p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors" title="Eliminar merma">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            ` : ''}
+            
+            <div class="flex-1 min-w-[150px] w-full">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tipo de Merma</label>
+              <select ${isNormal ? 'disabled' : ''} class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none merma-tipo ${inputStyle}" onchange="toggleDestino('${rowId}', this.value)">
+                <option value="Basura" ${tipo === 'Basura' ? 'selected' : ''}>Basura</option>
+                <option value="Transferencia" ${tipo === 'Transferencia' ? 'selected' : ''}>Transferencia (Subproducto)</option>
+              </select>
+            </div>
+    
+            <div class="w-full md:w-32">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cantidad</label>
+              <div class="relative">
+                <input type="number" step="0.01" value="${cantidad}" ${isNormal ? 'disabled' : ''} autocomplete="off" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none merma-cant ${inputStyle}" placeholder="0.00">
+                <span class="absolute right-3 top-2.5 text-xs text-gray-400 font-semibold">KG</span>
+              </div>
+            </div>
+    
+            <div class="flex-1 min-w-[200px] w-full ${tipo === 'Transferencia' ? '' : 'hidden'}" id="${rowId}-dest-box">
+              <label class="block text-[10px] font-bold text-indigo-500 uppercase mb-1">Lote Destino Activo</label>
+              <select ${isNormal ? 'disabled' : ''} class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none merma-dest ${selectDestStyle}">
+                ${selectDestinoOptions}
+              </select>
+            </div>
+          </div>
+        `;
+    
+        container.insertAdjacentHTML('beforeend', rowHTML);
+        if (window.lucide) lucide.createIcons();
+      }
+    
+      function eliminarMermaRow(id) {
+        document.getElementById(id)?.remove();
+      }
+    
+      function marcarSinMermas() {
+        if (activeUser?.rol !== "Admin") {
+          showToast("Solo los administradores pueden modificar las mermas.", "error");
+          return;
+        }
+        
+        const container = document.getElementById('mermas-container');
+        const msgSinMermas = document.getElementById('msg-sin-mermas');
+        const btnAddMerma = document.getElementById('btn-add-merma');
+        const txtBtn = document.getElementById('txt-btn-no-merma');
+        const btnNoMerma = document.getElementById('btn-no-merma');
+    
+        if (!tieneMermasBloqueadas) {
+          tieneMermasBloqueadas = true;
+          container.innerHTML = '';
+          container.classList.add('hidden');
+          msgSinMermas.classList.remove('hidden');
+          btnAddMerma.classList.add('hidden');
+          
+          txtBtn.innerText = "Habilitar Mermas";
+          btnNoMerma.className = "text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors border border-amber-200";
+          showToast("Se marcó la producción sin mermas.", "success");
+        } else {
+          tieneMermasBloqueadas = false;
+          container.classList.remove('hidden');
+          msgSinMermas.classList.add('hidden');
+          btnAddMerma.classList.remove('hidden');
+          
+          txtBtn.innerText = "No hay Mermas";
+          btnNoMerma.className = "text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors border border-slate-200";
+        }
+        if (window.lucide) lucide.createIcons();
+      }
+    
+      function toggleDestino(rowId, val) {
+        const el = document.getElementById(`${rowId}-dest-box`);
+        if (!el) return;
+        if (val === 'Transferencia') el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      }
+    
+      // ================= GUARDAR PRODUCCIÓN =================
+      async function enviarAlSheets() {
+        const insProv = parseFloat(document.getElementById('insumo-proveedor').value) || 0;
+        const insReal = parseFloat(document.getElementById('insumo-real').value) || 0;
+        const insRed = parseFloat(document.getElementById('insumo-reducido').value) || 0;
+        const pesoTotalKg = parseFloat(document.getElementById('insumo-peso-kg').value) || 0;
+        const empLogrados = parseFloat(document.getElementById('empacados-logrados').value) || 0;
+    
+        const transRecibida = parseFloat(document.getElementById('live-estado').dataset.transRecibida) || 0;
+        const totalInsumoDisponible = insReal + transRecibida;
+    
+        if (totalInsumoDisponible <= 0) {
+          showToast("Debes ingresar el Insumo Real Recibido o contar con una transferencia cargada.", "error");
+          return;
+        }
+    
+        const unidadOrden = (activeOrden?.Unidad || '').trim().toLowerCase();
+        const esPorUnidades = unidadOrden !== 'kg' && unidadOrden !== 'kilos';
+        
+        const tieneMermasActivas = !tieneMermasBloqueadas && document.querySelectorAll('.merma-row-item').length > 0;
+        const tieneReduccion = insRed > 0;
+        
+        if (esPorUnidades && (tieneMermasActivas || tieneReduccion) && pesoTotalKg <= 0) {
+          showToast("Para calcular mermas o reducción en insumos por unidades, ingresa el Peso Total de Entrada en Kg.", "error");
+          return;
+        }           
+    
+        const mermas = [];
+        let errorMermas = false;
+    
+        if (tieneMermasBloqueadas) {
+          mermas.push({ tipo: 'Sin Merma', cantidad: 0, destino: '' });
+        } else {
+          document.querySelectorAll('.merma-row-item').forEach(row => {
+            const tipo = row.querySelector('.merma-tipo').value;
+            const cant = parseFloat(row.querySelector('.merma-cant').value) || 0;
+            const dest = row.querySelector('.merma-dest') ? row.querySelector('.merma-dest').value : '';
+    
+            if (cant <= 0) {
+              errorMermas = true;
+            } else {
+              mermas.push({ tipo: tipo, cantidad: cant, destino: dest });
+            }
+          });
+        }
+    
+        if (!tieneMermasBloqueadas && errorMermas) {
+          showToast("Por favor corrige las cantidades de mermas vacías o en 0.", "error");
+          return;
+        }
+    
+        let estadoRegistroFinal = empLogrados <= 0 ? "Incompleto" : "Registrado";
+        const liveEstadoText = document.getElementById('live-estado').innerText;
+    
+        const payload = {
+          action: "guardarProduccion",
+          role: activeUser?.rol,
+          data: {
+            id: activeOrden.ID_Orden,
+            insumo_prov: insProv,
+            insumo_real: insReal,
+            insumo_reducido: insRed,
+            peso_total_kg: pesoTotalKg,
+            unidad: activeOrden.Unidad,
+            empacados: empLogrados,
+            estado_rend: empLogrados > 0 ? liveEstadoText : "Esperando Datos",
+            mermas: mermas,
+            estado_registro_custom: estadoRegistroFinal
+          }
+        };
+    
+        // Actualizar datos en memoria local para respuesta visual instantánea
+        let itemReal = rawDatabase.produccionReal?.find(p => p.ID_Orden === activeOrden.ID_Orden);
+        if (itemReal) {
+          itemReal.Insumo_Proveedor = insProv;
+          itemReal.Insumo_Real = insReal;
+          itemReal.Insumo_Reducido = insRed;
+          itemReal.Peso_Total_Kg = pesoTotalKg;
+          itemReal.Empacados_Logrados = empLogrados;
+          itemReal.Estado_Rendimiento = payload.data.estado_rend;
+        } else {
+          rawDatabase.produccionReal?.push({
+            ID_Orden: activeOrden.ID_Orden,
+            Insumo_Proveedor: insProv,
+            Insumo_Real: insReal,
+            Unidad: activeOrden.Unidad,
+            Empacados_Logrados: empLogrados,
+            Estado_Rendimiento: payload.data.estado_rend,
+            Insumo_Reducido: insRed,
+            Peso_Total_Kg: pesoTotalKg
+          });
+        }
+    
+        let itemProg = rawDatabase.programacion?.find(p => p.ID_Orden === activeOrden.ID_Orden);
+        if (itemProg) itemProg.Estado_Registro = estadoRegistroFinal;
+    
+        rawDatabase.mermas = (rawDatabase.mermas || []).filter(m => m.ID_Orden !== activeOrden.ID_Orden);
+        mermas.forEach(m => {
+          rawDatabase.mermas.push({
+            ID_Orden: activeOrden.ID_Orden,
+            Tipo_Merma: m.tipo,
+            Cantidad: m.cantidad,
+            Unidad: "Kg",
+            Producto_Destino: m.destino
+          });
+        });
+    
+        showToast(`¡Guardado exitosamente! Estado: ${estadoRegistroFinal}`, "success");
+        applyFiltersProg();
+        switchTab('programacion');
+    
+        // Envío asíncrono a Google Sheets
+        try {
+          fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } catch (err) {
+          console.error("Error al sincronizar con Sheets en segundo plano:", err);
+        }
+      }
+    
+      // ================= CALCULADORAS E HISTÓRICOS =================
+      function getProductoPorOrden(orderId) {
+        const p = rawDatabase.programacion?.find(pg => pg.ID_Orden === orderId);
+        return p ? p.Producto : "Producto no encontrado";
+      }
+    
+      function mostrarCargando(show) {
+        const screen = document.getElementById('loading-screen');
+        if (!screen) return;
+        if (show) screen.classList.remove('hidden');
+        else screen.classList.add('hidden');
+      }
+    
+      function showToast(msg, type = "success") {
+        const container = document.getElementById('toast-container');
+        if (!container) {
+          alert(msg);
+          return;
+        }
+        const toastId = `toast-${Date.now()}`;
+        const bg = type === 'success' ? 'bg-emerald-600' : 'bg-rose-600';
+        const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+    
+        const html = `
+          <div id="${toastId}" class="flex items-center space-x-3 text-white px-4 py-3 rounded-xl shadow-lg transform transition-all duration-300 translate-y-5 opacity-0 ${bg} pointer-events-auto">
+            <i data-lucide="${icon}" class="w-5 h-5"></i>
+            <span class="text-sm font-semibold">${msg}</span>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+        if (window.lucide) lucide.createIcons();
+    
+        const el = document.getElementById(toastId);
+        setTimeout(() => el?.classList.remove('translate-y-5', 'opacity-0'), 50);
+        setTimeout(() => {
+          el?.classList.add('translate-y-2', 'opacity-0');
+          setTimeout(() => el?.remove(), 300);
+        }, 3500);
+      }
+    
+      function inicializarCalculadora() {
+        filtrarProductosCalculadora();
+        document.addEventListener('click', function(e) {
+          const container = document.getElementById('calc-dropdown-productos');
+          const searchInput = document.getElementById('calc-search-producto');
+          if (container && !container.contains(e.target) && e.target !== searchInput) {
+            container.classList.add('hidden');
+          }
+        });
+      }
+    
+      function mostrarDropdownCalculadora() {
+        document.getElementById('calc-dropdown-productos')?.classList.remove('hidden');
+      }
+    
+      function toggleDropdownCalculadora() {
+        document.getElementById('calc-dropdown-productos')?.classList.toggle('hidden');
+      }
+    
+      function filtrarProductosCalculadora() {
+        const inputVal = document.getElementById('calc-search-producto')?.value.toLowerCase() || '';
+        const dropdown = document.getElementById('calc-dropdown-productos');
+        if (!dropdown || !rawDatabase?.historico) return;
+        dropdown.innerHTML = '';
+    
+        const productosUnicos = [];
+        rawDatabase.historico.forEach(h => {
+          if (!productosUnicos.includes(h.Producto)) productosUnicos.push(h.Producto);
+        });
+    
+        const filtrados = productosUnicos.filter(prod => prod.toLowerCase().includes(inputVal));
+        if (filtrados.length === 0) {
+          dropdown.innerHTML = `<div class="p-3 text-xs text-gray-400 italic">No se encontraron productos</div>`;
+          return;
+        }
+    
+        filtrados.forEach(prod => {
+          dropdown.innerHTML += `
+            <div onclick="seleccionarProductoCalculadora('${prod.replace(/'/g, "\\'")}')" class="p-3 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 cursor-pointer transition-colors font-medium">
+              ${prod}
+            </div>
+          `;
+        });
+      }
+    
+      function seleccionarProductoCalculadora(producto) {
+        productoSeleccionadoCalc = producto;
+        const searchInput = document.getElementById('calc-search-producto');
+        if (searchInput) searchInput.value = producto;
+        document.getElementById('calc-dropdown-productos')?.classList.add('hidden');
+    
+        const selectInsumo = document.getElementById('calc-select-insumo');
+        if (!selectInsumo) return;
+        selectInsumo.innerHTML = '<option value="">-- Selecciona Insumo --</option>';
+        
+        const insumosAsociados = rawDatabase.historico.filter(h => h.Producto === producto);
+        if (insumosAsociados.length > 0) {
+          insumosAsociados.forEach(ins => {
+            selectInsumo.innerHTML += `<option value="${ins.Insumo}">${ins.Insumo}</option>`;
+          });
+          selectInsumo.disabled = false;
+          selectInsumo.className = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-semibold text-slate-800";
+        }
+    
+        const inputCant = document.getElementById('calc-cantidad-insumo');
+        if (inputCant) {
+          inputCant.disabled = true;
+          inputCant.value = '';
+          inputCant.className = "w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50 text-slate-500";
+        }
+        resetearPanelsCalculadora();
+      }
+    
+      function seleccionarInsumoEspecifico() {
+        const insumoVal = document.getElementById('calc-select-insumo')?.value;
+        const inputCant = document.getElementById('calc-cantidad-insumo');
+        if (!inputCant) return;
+    
+        if (!insumoVal) {
+          inputCant.disabled = true;
+          inputCant.value = '';
+          inputCant.className = "w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50 text-slate-500";
+          resetearPanelsCalculadora();
+          return;
+        }
+    
+        const registroExacto = rawDatabase.historico?.find(h => h.Producto === productoSeleccionadoCalc && h.Insumo === insumoVal);
+        if (registroExacto) {
+          const unidadBase = registroExacto.Unidad ? registroExacto.Unidad.split('/')[1] || 'Kg' : 'Kg';
+          document.getElementById('calc-txt-unidad-input').innerText = unidadBase;
+          document.getElementById('calc-ref-inf').innerText = `${parseFloat(registroExacto.Rendimiento_Inferior).toFixed(2)} PA's/${unidadBase}`;
+          document.getElementById('calc-ref-sup').innerText = `${parseFloat(registroExacto.Rendimiento_Superior).toFixed(2)} PA's/${unidadBase}`;
+    
+          inputCant.disabled = false;
+          inputCant.className = "w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white text-slate-800 font-medium";
+          ejecutarCalculoRendimiento();
+        }
+      }
+    
+      function ejecutarCalculoRendimiento() {
+        const insumoVal = document.getElementById('calc-select-insumo')?.value;
+        const cantidad = parseFloat(document.getElementById('calc-cantidad-insumo')?.value) || 0;
+        const resMin = document.getElementById('calc-res-min');
+        const resMax = document.getElementById('calc-res-max');
+        const badgeTotal = document.getElementById('calc-badge-unidades');
+    
+        if (cantidad <= 0 || !productoSeleccionadoCalc || !insumoVal) {
+          if (resMin) resMin.innerText = "0";
+          if (resMax) resMax.innerText = "0";
+          if (badgeTotal) badgeTotal.innerText = "0 PA's en total";
+          return;
+        }
+    
+        const registroExacto = rawDatabase.historico?.find(h => h.Producto === productoSeleccionadoCalc && h.Insumo === insumoVal);
+        if (registroExacto) {
+          const totalMin = Math.floor(cantidad * parseFloat(registroExacto.Rendimiento_Inferior));
+          const totalMax = Math.ceil(cantidad * parseFloat(registroExacto.Rendimiento_Superior));
+          if (resMin) resMin.innerText = totalMin;
+          if (resMax) resMax.innerText = totalMax;
+          if (badgeTotal) badgeTotal.innerText = `Saldrán entre ${totalMin} y ${totalMax} PA's de este insumo`;
+        }
+      }
+    
+      function resetearPanelsCalculadora() {
+        const elMin = document.getElementById('calc-res-min');
+        const elMax = document.getElementById('calc-res-max');
+        const elBadge = document.getElementById('calc-badge-unidades');
+        const elInf = document.getElementById('calc-ref-inf');
+        const elSup = document.getElementById('calc-ref-sup');
+    
+        if (elMin) elMin.innerText = "0";
+        if (elMax) elMax.innerText = "0";
+        if (elBadge) elBadge.innerText = "0 PA's en total";
+        if (elInf) elInf.innerText = "0.00 ";
+        if (elSup) elSup.innerText = "0.00 ";
+      }
+    
+      // ================= CALCULADORA INVERSA =================
+      function inicializarCalculadoraInsumos() {
+        filtrarProductosInsumos();
+        document.addEventListener('click', function(e) {
+          const container = document.getElementById('ins-dropdown-productos');
+          const searchInput = document.getElementById('ins-search-producto');
+          if (container && !container.contains(e.target) && e.target !== searchInput) {
+            container.classList.add('hidden');
+          }
+        });
+      }
+    
+      function mostrarDropdownInsumos() {
+        document.getElementById('ins-dropdown-productos')?.classList.remove('hidden');
+      }
+    
+      function toggleDropdownInsumos() {
+        document.getElementById('ins-dropdown-productos')?.classList.toggle('hidden');
+      }
+    
+      function filtrarProductosInsumos() {
+        const inputVal = document.getElementById('ins-search-producto')?.value.toLowerCase() || '';
+        const dropdown = document.getElementById('ins-dropdown-productos');
+        if (!dropdown || !rawDatabase?.historico) return;
+        dropdown.innerHTML = '';
+    
+        const productosUnicos = [];
+        rawDatabase.historico.forEach(h => {
+          if (!productosUnicos.includes(h.Producto)) productosUnicos.push(h.Producto);
+        });
+    
+        const filtrados = productosUnicos.filter(prod => prod.toLowerCase().includes(inputVal));
+        if (filtrados.length === 0) {
+          dropdown.innerHTML = `<div class="p-3 text-xs text-gray-400 italic">No se encontraron productos</div>`;
+          return;
+        }
+    
+        filtrados.forEach(prod => {
+          dropdown.innerHTML += `
+            <div onclick="seleccionarProductoInsumos('${prod.replace(/'/g, "\\'")}')" class="p-3 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 cursor-pointer transition-colors font-medium">
+              ${prod}
+            </div>
+          `;
+        });
+      }
+    
+      function seleccionarProductoInsumos(producto) {
+        productoSeleccionadoIns = producto;
+        const searchInput = document.getElementById('ins-search-producto');
+        if (searchInput) searchInput.value = producto;
+        document.getElementById('ins-dropdown-productos')?.classList.add('hidden');
+    
+        const inputPas = document.getElementById('ins-cantidad-pas');
+        if (inputPas) {
+          inputPas.disabled = false;
+          inputPas.className = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white text-slate-800 font-medium";
+          inputPas.value = '';
+        }
+        
+        const container = document.getElementById('ins-resultados-container');
+        if (container) {
+          container.innerHTML = `
+            <div class="text-center py-12 text-slate-400 italic text-sm">
+              Ingresa la cantidad de PA's a producir para calcular los insumos.
+            </div>
+          `;
+        }
+      }
+    
+      function ejecutarCalculoInverso() {
+        const pasDeseadas = parseFloat(document.getElementById('ins-cantidad-pas')?.value) || 0;
+        const container = document.getElementById('ins-resultados-container');
+        if (!container) return;
+        container.innerHTML = '';
+    
+        if (pasDeseadas <= 0 || !productoSeleccionadoIns) {
+          container.innerHTML = `
+            <div class="text-center py-12 text-slate-400 italic text-sm">
+              Ingresa una cantidad válida mayor a 0 para ejecutar el cálculo.
+            </div>
+          `;
+          return;
+        }
+    
+        const todosLosInsumos = rawDatabase.historico?.filter(h => h.Producto === productoSeleccionadoIns) || [];
+        if (todosLosInsumos.length === 0) {
+          container.innerHTML = `<div class="text-center py-12 text-rose-500 font-medium text-sm">No hay parámetros históricos registrados para este producto.</div>`;
+          return;
+        }
+    
+        todosLosInsumos.forEach(ins => {
+          const rendimientoInf = parseFloat(ins.Rendimiento_Inferior) || 1;
+          const rendimientoSup = parseFloat(ins.Rendimiento_Superior) || 1;
+          const unidadLimpia = ins.Unidad ? ins.Unidad.split('/')[1] || ins.Unidad : 'Kg';
+    
+          const insumoMinimo = (pasDeseadas / rendimientoSup).toFixed(2);
+          const insumoMaximo = (pasDeseadas / rendimientoInf).toFixed(2);
+    
+          container.innerHTML += `
+            <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-inner hover:border-indigo-200 transition-colors">
+              <div class="flex items-center space-x-3">
+                <div class="bg-indigo-100 text-indigo-700 p-2.5 rounded-xl">
+                  <i data-lucide="corn" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 class="font-extrabold text-slate-800 text-sm">${ins.Insumo}</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">Rangos de referencia: ${rendimientoInf.toFixed(2)} a ${rendimientoSup.toFixed(2)} PA's por ${unidadLimpia}</p>
+                </div>
+              </div>
+              <div class="bg-white px-4 py-2 rounded-lg border border-slate-150 text-right min-w-[180px] shadow-sm">
+                <span class="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cantidad Requerida</span>
+                <span class="text-base font-black text-slate-800">
+                  ${insumoMinimo} a ${insumoMaximo}
+                </span>
+                <span class="text-xs font-bold text-indigo-600 ml-1">${unidadLimpia}</span>
+              </div>
+            </div>
+          `;
+        });
+    
+        if (window.lucide) lucide.createIcons();
+      }
+    
+      // ================= VIDA ÚTIL =================
+      function renderVidaUtil(searchFilter = '', statusFilter = '') {
+        const rows = document.getElementById('vida-util-rows');
+        if (!rows) return;
+        rows.innerHTML = '';
+    
+        if (!rawDatabase?.vidaUtil?.length) {
+          rows.innerHTML = `<tr><td colspan="7" class="px-6 py-12 text-center text-gray-400 italic">No hay datos de vida útil en la pestaña de Sheets</td></tr>`;
+          return;
+        }
+    
+        const filtrados = rawDatabase.vidaUtil.filter(item => {
+          const paNombre = item.PA_NOMBRE || item["PA NOMBRE"] || item.pa_nombre || item.PA_Nombre || '';
+          const estado = item.ESTADO || item.estado || item.Estado || '';
+    
+          const matchesSearch = paNombre.toLowerCase().includes(searchFilter);
+          const matchesStatus = !statusFilter || estado.trim().toUpperCase() === statusFilter.toUpperCase();
+          return matchesSearch && matchesStatus;
+        });
+    
+        if (filtrados.length === 0) {
+          rows.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400">Sin registros que coincidan con los filtros aplicados</td></tr>`;
+          return;
+        }
+    
+        filtrados.forEach(item => {
+          const name = item.PA_NOMBRE || item["PA NOMBRE"] || item.pa_nombre || item.PA_Nombre || '---';
+          const vidaIdeal = item.DIAS_DE_VIDA_UTIL_IDEAL || item["DIAS DE VIDA UTIL IDEAL"] || item.dias_de_vida_util_ideal || '---';
+          const stock = item.CANTIDAD_EN_STOCK || item["CANTIDAD EN STOCK"] || item.cantidad_en_stock || '0';
+          const estado = (item.ESTADO || item.estado || item.Estado || '').trim().toUpperCase();
+          const tiempoVida = item.TIEMPO_DE_VIDA || item["TIEMPO DE VIDA"] || item.tiempo_de_vida || item.TIEMPO_DE_VA || '---';
+    
+          let rawFechaLote = item.FECHA_DEL_LOTE || item["FECHA DEL LOTE"] || item.fecha_del_lote || null;
+          let rawFechaHoy = item.FECHA_HOY || item["FECHA HOY"] || item.fecha_hoy || null;
+    
+          const fLote = rawFechaLote ? new Date(rawFechaLote).toLocaleDateString() : '---';
+          const fHoy = rawFechaHoy ? new Date(rawFechaHoy).toLocaleDateString() : '---';
+    
+          let rowBgClass = "bg-white hover:bg-slate-50"; 
+          let labelStyle = "bg-slate-100 text-slate-700 border border-slate-200";
+    
+          if (estado === "EN VIDA UTIL") {
+            rowBgClass = "bg-emerald-50/40 hover:bg-emerald-50/70 transition-colors";
+            labelStyle = "bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-200 shadow-sm";
+          } else if (estado === "PROXIMO A VENCER") {
+            rowBgClass = "bg-amber-50/40 hover:bg-amber-50/70 transition-colors";
+            labelStyle = "bg-amber-100 text-amber-800 font-extrabold border border-amber-200 shadow-sm";
+          } else if (estado === "FUERA DE RANGO DE VIDA") {
+            rowBgClass = "bg-rose-50/40 hover:bg-rose-50/70 transition-colors";
+            labelStyle = "bg-rose-100 text-rose-800 font-extrabold border border-rose-200 shadow-sm animate-pulse";
+          } else if (estado === "SIN FECHA") {
+            rowBgClass = "bg-slate-50 hover:bg-slate-100/80";
+            labelStyle = "bg-slate-200 text-slate-600 font-medium border border-slate-300";
+          }
+    
+          rows.innerHTML += `
+            <tr class="${rowBgClass}">
+              <td class="px-6 py-4 font-bold text-slate-900">${name}</td>
+              <td class="px-6 py-4 text-center font-semibold font-mono text-slate-600">${vidaIdeal} d.</td>
+              <td class="px-6 py-4 text-gray-500 font-medium">${fLote}</td>
+              <td class="px-6 py-4 text-center font-black text-slate-800 font-mono text-base">${stock}</td>
+              <td class="px-6 py-4 text-gray-400 text-xs">${fHoy}</td>
+              <td class="px-6 py-4">
+                <span class="px-3 py-1 text-xs rounded-full inline-block tracking-wide uppercase ${labelStyle}">
+                  ${estado || 'SIN ESTADO'}
+                </span>
+              </td>
+              <td class="px-6 py-4 font-bold text-sm ${estado === 'FUERA DE RANGO DE VIDA' ? 'text-rose-700' : estado === 'PROXIMO A VENCER' ? 'text-amber-700' : 'text-slate-600'}">
+                ${tiempoVida}
+              </td>
+            </tr>
+          `;
+        });
+      }
+    
+      function filtrarVidaUtil() {
+        const search = document.getElementById('filter-vida-search')?.value.toLowerCase() || '';
+        const status = document.getElementById('filter-vida-status')?.value || '';
+        renderVidaUtil(search, status);
+      }
+    </script>
+
+    
+</body>
+</html>

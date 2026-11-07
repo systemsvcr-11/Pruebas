@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIGEP - Gestión Integral de Talento y Bienestar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            crema: {
+              50: '#FDFCF9',
+              100: '#FBF9F4',    // Fondo principal crema cálido
+              200: '#F4EFE6',    // Borde / acento suave
+              300: '#EAE2D3',
+            },
+            pastel: {
+              sidebar: '#1E232F',
+              accent: '#6366F1',
+              lavender: '#F1F0FB',
+              lavenderDark: '#4338CA',
+              border: '#E8E5DF'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-crema-100 font-sans text-slate-700 min-h-screen antialiased flex flex-col">
+
+  <!-- ==================== VISTA 1: LOGIN ==================== -->
+  <div id="vista-login" class="flex min-h-screen items-center justify-center p-6 bg-crema-100">
+    <div class="bg-white/95 rounded-3xl shadow-xl border border-crema-200 w-full max-w-md p-8 sm:p-10 transition-all">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-pastel-lavender text-pastel-lavenderDark font-extrabold text-2xl mb-4 border border-indigo-100 shadow-2xs">
+          GP
+        </div>
+        <h1 class="text-2xl font-black text-slate-800 tracking-tight">Acceso Corporativo</h1>
+        <p class="text-slate-400 text-xs mt-1.5 font-medium">Plataforma de Talento y Bienestar Social</p>
+      </div>
+
+      <form id="form-login" onsubmit="(event)" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Usuario</label>
+          <input type="text" id="login-user" required placeholder="Ej: admin, local1" 
+                 class="w-full px-4 py-3 rounded-xl border border-crema-200 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition bg-crema-50/70 font-medium">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Contraseña</label>
+          <input type="password" id="login-pass" required placeholder="••••••••" 
+                 class="w-full px-4 py-3 rounded-xl border border-crema-200 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition bg-crema-50/70 font-medium">
+        </div>
+        <div id="login-error" class="hidden text-rose-700 text-xs font-semibold bg-rose-50 p-3 rounded-xl border border-rose-200 text-center"></div>
+        <button type="submit" id="btn-login" 
+                class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
+          Ingresar al Portal
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== VISTA 2: APLICACIÓN PRINCIPAL ==================== -->
+  <div id="vista-panel" class="hidden min-h-screen flex flex-row overflow-hidden relative">
+    
+    <!-- TELÓN DE FONDO (BACKDROP) PARA MÓVILES -->
+    <div id="sidebar-backdrop" onclick="toggleSidebar(false)" 
+         class="fixed inset-0 bg-slate-900/60 z-30 hidden transition-opacity duration-300 md:hidden backdrop-blur-2xs"></div>
+
+    <!-- BARRA LATERAL DESPLEGABLE (SIDEBAR) -->
+    <aside id="sidebar-panel" 
+           class="fixed md:static inset-y-0 left-0 w-68 bg-pastel-sidebar text-white shrink-0 flex flex-col justify-between shadow-2xl z-40 transition-transform duration-300 ease-in-out -translate-x-full md:translate-x-0">
+      <div>
+        <!-- Contenedor del Logo de Sede / Corporativo -->
+        <div class="p-6 border-b border-slate-700/60 flex items-center justify-between">
+          <div class="flex items-center gap-3.5">
+            <div id="sidebar-logo-container" class="w-14 h-14 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center p-2 shadow-md shrink-0">
+              <img id="sidebar-logo" src="./img/Default.png" class="max-h-full max-w-full object-contain" alt="Logo Sede">
+            </div>
+            <div class="overflow-hidden">
+              <h1 id="sidebar-app-title" class="text-sm font-black text-white tracking-wide truncate">GRUPO GASTRONÓMICO</h1>
+              <p id="sidebar-sede-label" class="text-[11px] text-indigo-300 font-semibold truncate mt-0.5">Sede General</p>
+            </div>
+          </div>
+
+          <!-- Botón de Cerrar Sidebar (visible solo en móviles) -->
+          <button onclick="toggleSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1 text-xl">
+            ✕
+          </button>
+        </div>
+
+        <!-- Módulos de Gestión -->
+        <nav class="p-4 space-y-1.5 text-xs font-semibold">
+          <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Módulos</p>
+          
+          <!-- Módulo Activo -->
+          <a href="#" class="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 transition">
+            <span class="text-base">👥</span>
+            <span>Colaboradores</span>
+          </a>
+
+          <!-- Módulos Deshabilitados -->
+          <div class="opacity-40 cursor-not-allowed select-none space-y-1 pt-1">
+            <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400">
+              <div class="flex items-center gap-3">
+                <span class="text-base">🌟</span>
+                <span>Talentos Ocultos</span>
+              </div>
+              <span class="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-1.5 py-0.5 rounded font-mono">PRÓX</span>
+            </div>
+
+            <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400">
+              <div class="flex items-center gap-3">
+                <span class="text-base">⏰</span>
+                <span>Turnos y Horarios</span>
+              </div>
+              <span class="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-1.5 py-0.5 rounded font-mono">PRÓX</span>
+            </div>
+
+            <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-400">
+              <div class="flex items-center gap-3">
+                <span class="text-base">🚨</span>
+                <span>Asistencia Social</span>
+              </div>
+              <span class="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-1.5 py-0.5 rounded font-mono">PRÓX</span>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Pie del Sidebar con Botón Elegante de Salida -->
+      <div class="p-4 border-t border-slate-700/60 bg-slate-900/50 space-y-3">
+        <div class="px-2">
+          <p id="user-nombre" class="text-xs font-bold text-white truncate">-</p>
+          <p id="user-rol-tag" class="text-[10px] text-slate-400 font-medium truncate">Sesión activa</p>
+        </div>
+
+        <button onclick="cerrarSesion()" 
+                class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-950/40 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-500/40 text-xs font-semibold transition duration-150 group">
+          <svg class="w-4 h-4 text-slate-400 group-hover:text-rose-300 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ÁREA DE CONTENIDO CENTRAL -->
+    <div class="flex-1 flex flex-col h-screen overflow-y-auto w-full">
+      
+      <!-- HEADER SUPERIOR CON BOTÓN DE MENÚ HAMBURGUESA -->
+      <header class="bg-white/80 backdrop-blur-sm border-b border-crema-200 px-4 md:px-8 py-4 flex justify-between items-center sticky top-0 z-20">
+        <div class="flex items-center gap-3">
+          <!-- Botón Hamburguesa -->
+          <button onclick="toggleSidebar()" 
+                  class="p-2 rounded-xl bg-crema-50 hover:bg-crema-200 border border-crema-200 text-slate-700 transition" 
+                  title="Alternar Menú Lateral">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <div>
+            <h2 class="text-base md:text-lg font-bold text-slate-800 tracking-tight leading-tight">Directorio de Colaboradores</h2>
+            <p class="text-[11px] md:text-xs text-slate-400 hidden sm:block">Datos consolidados de visitas sociofamiliares</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] md:text-xs font-bold rounded-full border border-emerald-200/70">
+            ● En línea
+          </span>
+        </div>
+      </header>
+
+      <!-- CUERPO PRINCIPAL -->
+      <main class="p-4 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
+
+        <!-- FILTROS MODERNOS -->
+        <section class="bg-white p-4 md:p-5 rounded-2xl border border-crema-200 shadow-2xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nombre o Apellido</label>
+            <input type="text" id="filtro-nombre" oninput="aplicarFiltros()" placeholder="Buscar colaborador..." 
+                   class="w-full bg-crema-50/70 border border-crema-200 text-slate-700 text-xs rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-200">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">D.N.I.</label>
+            <input type="text" id="filtro-dni" oninput="aplicarFiltros()" placeholder="Documento..." 
+                   class="w-full bg-crema-50/70 border border-crema-200 text-slate-700 text-xs rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-200 font-mono">
+          </div>
+
+          <!-- Filtro Local / Empresa (Solo rol General) -->
+          <div id="contenedor-filtro-local">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Empresa / Sede</label>
+            <select id="filtro-local" onchange="aplicarFiltros()" class="w-full bg-crema-50/70 border border-crema-200 text-slate-700 text-xs rounded-xl px-3 py-2.5 outline-none font-medium">
+              <option value="">Todas las Sedes</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Área Operativa</label>
+            <select id="filtro-area" onchange="aplicarFiltros()" class="w-full bg-crema-50/70 border border-crema-200 text-slate-700 text-xs rounded-xl px-3 py-2.5 outline-none font-medium">
+              <option value="">Todas las Áreas</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Turno</label>
+            <select id="filtro-turno" onchange="aplicarFiltros()" class="w-full bg-crema-50/70 border border-crema-200 text-slate-700 text-xs rounded-xl px-3 py-2.5 outline-none font-medium">
+              <option value="">Todos los Turnos</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- TABLA DE COLABORADORES -->
+        <section class="bg-white rounded-2xl border border-crema-200 shadow-2xs overflow-hidden">
+          <div class="px-6 py-4 border-b border-crema-200 flex justify-between items-center bg-slate-50/40">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Registros Totales: <strong id="contador-total" class="text-slate-800 text-sm">0</strong>
+            </h3>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-50/80 border-b border-crema-200 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                <tr>
+                  <th class="px-6 py-3.5">DNI</th>
+                  <th class="px-6 py-3.5">Nombres</th>
+                  <th class="px-6 py-3.5">Apellidos</th>
+                  <th class="px-6 py-3.5">Empresa / Sede</th>
+                  <th class="px-6 py-3.5">Área</th>
+                  <th class="px-6 py-3.5">Turno</th>
+                  <th class="px-6 py-3.5 text-center">Ficha 360°</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-cuerpo" class="divide-y divide-crema-200 text-slate-600 font-medium">
+                <!-- Se puebla mediante JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL DE EXPEDIENTE ==================== -->
+  <div id="modal-ficha" class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-3 sm:p-4 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh] border border-crema-200">
+      
+      <!-- Cabecera Modal -->
+      <div class="bg-pastel-sidebar text-white px-5 sm:px-7 py-4 flex justify-between items-center shrink-0">
+        <div>
+          <h3 class="font-bold text-sm tracking-wide">Expediente Socioeconómico y Laboral</h3>
+          <p class="text-[11px] text-slate-400">Información consolidada para uso exclusivo de RRHH</p>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <button onclick="imprimirFichaDirecta()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-2 rounded-xl transition flex items-center gap-1.5 sm:gap-2 shadow-xs">
+            🖨️ <span class="hidden sm:inline">Descargar Ficha PDF /</span> Imprimir
+          </button>
+          <button onclick="cerrarModal()" class="text-slate-400 hover:text-white font-bold text-2xl transition leading-none">&times;</button>
+        </div>
+      </div>
+
+      <!-- Contenedor Ficha (Renderizado en pantalla y Molde de Impresión Corporativo) -->
+      <div id="ficha-printable-content" class="p-6 sm:p-8 overflow-y-auto space-y-6 text-xs bg-white">
+        
+        <!-- MEMBRETE FORMAL CORPORATIVO -->
+        <div class="border-b-2 border-slate-800 pb-5 flex justify-between items-start">
+          <div class="flex items-center gap-4 sm:gap-5">
+            <!-- Contenedor de Logo Adaptativo (se ajusta dinámicamente con JS según sea claro u oscuro) -->
+            <div id="modal-logo-container" class="w-14 sm:w-16 h-14 sm:h-16 rounded-2xl bg-white flex items-center justify-center p-2 sm:p-2.5 border border-slate-300 shadow-sm shrink-0">
+              <img id="m-logo" src="./img/Default.png" class="max-h-full max-w-full object-contain" alt="Logo Empresa">
+            </div>
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ficha Individual de Colaborador</p>
+              <h2 id="m-nombre" class="text-base sm:text-xl font-extrabold text-slate-900 mt-0.5">-</h2>
+              <p class="text-slate-500 font-medium text-xs mt-0.5">D.N.I.: <span id="m-dni" class="font-bold text-slate-800 font-mono">-</span></p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="m-empresa" class="inline-block px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-slate-100 text-slate-800 font-extrabold rounded-lg border border-slate-300 text-[11px] sm:text-xs uppercase tracking-wider">-</span>
+            <p id="m-fecha" class="text-[10px] text-slate-400 mt-1 font-mono">Registro: -</p>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 1: DATOS OPERATIVOS -->
+        <div class="space-y-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-indigo-900 border-b border-slate-200 pb-1 flex items-center gap-2">
+            <span>📋</span> Datos Operativos y Académicos
+          </h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
+            <div>
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Área Asignada</span>
+              <p id="m-area" class="font-bold text-slate-800 text-xs mt-0.5">-</p>
+            </div>
+            <div>
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Turno de Trabajo</span>
+              <p id="m-turno" class="font-bold text-slate-800 text-xs mt-0.5">-</p>
+            </div>
+            <div>
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Medio de Transporte</span>
+              <p id="m-transporte" class="font-medium text-slate-700 text-xs mt-0.5">-</p>
+            </div>
+            <div>
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Centro de Estudios</span>
+              <p id="m-estudia" class="font-medium text-slate-700 text-xs mt-0.5">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: ENTORNO HABITACIONAL -->
+        <div class="space-y-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-indigo-900 border-b border-slate-200 pb-1 flex items-center gap-2">
+            <span>🏠</span> Entorno Habitacional y Familiar
+          </h4>
+          <div class="p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Dirección Domiciliaria</span>
+                <p id="m-direccion" class="font-medium text-slate-700 mt-0.5 leading-relaxed">-</p>
+              </div>
+              <div>
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Composición del Hogar</span>
+                <p id="m-vive" class="font-medium text-slate-700 mt-0.5">-</p>
+              </div>
+              <div>
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Condición de la Vivienda</span>
+                <p id="m-vivienda" class="font-medium text-slate-700 mt-0.5">-</p>
+              </div>
+            </div>
+            <div class="pt-3 border-t border-slate-200">
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Cobertura de Servicios Básicos</span>
+              <p id="m-servicios" class="font-semibold text-slate-800 mt-0.5">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: EVALUACIÓN SOCIAL Y APOYO -->
+        <div class="space-y-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-indigo-900 border-b border-slate-200 pb-1 flex items-center gap-2">
+            <span>🤝</span> Diagnóstico Social y Requerimientos de Bienestar
+          </h4>
+          <div class="p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Apoyo Familiar Declarado</span>
+                <p class="font-bold text-slate-800 mt-0.5" id="m-apoyo">-</p>
+                <p id="m-detalle-apoyo" class="text-slate-600 italic text-[11px] mt-1 bg-white p-2.5 rounded-lg border border-slate-200/70 leading-relaxed">-</p>
+              </div>
+              <div>
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Factores que Afectan Estudio/Trabajo</span>
+                <p class="font-bold text-slate-800 mt-0.5" id="m-afecta">-</p>
+                <p id="m-detalle-afecta" class="text-slate-600 italic text-[11px] mt-1 bg-white p-2.5 rounded-lg border border-slate-200/70 leading-relaxed">-</p>
+              </div>
+            </div>
+            <div class="pt-3 border-t border-slate-200 space-y-2">
+              <div>
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Apoyo Solicitado a la Empresa</span>
+                <p id="m-tipoapoyo" class="font-semibold text-indigo-950 mt-0.5 text-xs">-</p>
+              </div>
+              <div>
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Observaciones Generales de la Visita</span>
+                <p id="m-visita" class="text-slate-600 mt-0.5 leading-relaxed">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== LÓGICA Y CONTROLADORES ==================== -->
+  <script>
+    // URL de tu Apps Script publicada como Web App
+    const API_URL = "https://script.google.com/macros/s/AKfycbwRxY3Q_RJfG6hS6BRqY3hmiVqZmm23NvvM8aSiU-TftFeheZNpD6GYVAyDAh-uFktvZQ/exec";
+
+    // Configuración de logos locales con fondos de contraste adaptativos
+    const LOGOS_LOCALES = {
+      "BENITA": { url: "./img/La Benita.png", bg: "bg-white", border: "border-slate-300" },
+      "GUARDIANA": { url: "./img/La Guardiana.png", bg: "bg-white", border: "border-slate-300" },
+      "PLANTA": { url: "./img/Planta.png", bg: "bg-slate-900", border: "border-slate-700" },
+      "MATRONA": { url: "./img/Planta.png", bg: "bg-slate-900", border: "border-slate-700" },
+      "TODOS": { url: "./img/Default.png", bg: "bg-white", border: "border-slate-300" }
+    };
+
+    function obtenerConfigLogo(identificador) {
+      if (!identificador) return LOGOS_LOCALES["TODOS"];
+      
+      const texto = String(identificador)
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+
+      for (const [clave, conf] of Object.entries(LOGOS_LOCALES)) {
+        if (clave !== "TODOS" && texto.includes(clave)) {
+          return conf;
+        }
+      }
+
+      return LOGOS_LOCALES["TODOS"];
+    }
+
+    let colaboradores = [];
+    let usuarioActual = null;
+    let colaboradorSeleccionado = null;
+
+    // Control del Drawer / Sidebar
+    function toggleSidebar(forzarEstado = null) {
+      const sidebar = document.getElementById('sidebar-panel');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      const isClosed = sidebar.classList.contains('-translate-x-full');
+
+      const abrir = forzarEstado !== null ? forzarEstado : isClosed;
+
+      if (abrir) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+      async function ejecutarLogin(e) {
+        if (e) e.preventDefault();
+        const user = document.getElementById('login-user').value.trim();
+        const pass = document.getElementById('login-pass').value.trim();
+        const errorDiv = document.getElementById('login-error');
+        const btn = document.getElementById('btn-login');
+  
+        errorDiv.classList.add('hidden');
+        btn.innerText = "Verificando acceso...";
+        btn.disabled = true;
+  
+        try {
+          const res = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ accion: "login", usuario: user, password: pass })
+          });
+          const resJson = await res.json();
+  
+          if (resJson.error) throw new Error(resJson.error);
+  
+          usuarioActual = resJson.user;
+          colaboradores = resJson.data;
+  
+          // Guardar sesión persistente de este módulo
+          localStorage.setItem('sigep_session', JSON.stringify({
+            user: usuarioActual,
+            data: colaboradores,
+            authAccount: user.toLowerCase()
+          }));
+  
+          configurarInterfazUsuario();
+          document.getElementById('vista-login').classList.add('hidden');
+          document.getElementById('vista-panel').classList.remove('hidden');
+  
+          inicializarSelects();
+          aplicarFiltros();
+        } catch (err) {
+          errorDiv.innerText = err.message || "Error al conectar con la base de datos";
+          errorDiv.classList.remove('hidden');
+        } finally {
+          btn.innerText = "Ingresar al Portal";
+          btn.disabled = false;
+        }
+      }
+    function configurarInterfazUsuario() {
+      const confUser = obtenerConfigLogo(usuarioActual.local);
+      const contLogoSidebar = document.getElementById('sidebar-logo-container');
+      contLogoSidebar.className = `w-14 h-14 rounded-2xl ${confUser.bg} border ${confUser.border} flex items-center justify-center p-2 shadow-md shrink-0`;
+      document.getElementById('sidebar-logo').src = confUser.url;
+
+      document.getElementById('user-nombre').innerText = usuarioActual.nombre;
+      document.getElementById('user-rol-tag').innerText = usuarioActual.rol === 'general' ? 'Acceso Corporativo' : `Admin: ${usuarioActual.local}`;
+      document.getElementById('sidebar-sede-label').innerText = usuarioActual.rol === 'general' ? 'Vista Consolidada' : usuarioActual.local;
+
+      // Mostrar u ocultar el filtro de sedes según rol
+      const contLocal = document.getElementById('contenedor-filtro-local');
+      if (usuarioActual.rol !== 'general') {
+        contLocal.classList.add('hidden');
+      } else {
+        contLocal.classList.remove('hidden');
+      }
+    }
+
+    function cerrarSesion() {
+      // Limpiar datos y almacenamiento local
+      localStorage.removeItem('sigep_session');
+      usuarioActual = null;
+      colaboradores = [];
+      toggleSidebar(false);
+      document.getElementById('vista-panel').classList.add('hidden');
+      document.getElementById('vista-login').classList.remove('hidden');
+      document.getElementById('login-pass').value = "";
+    }
+
+    
+
+    // ================= DETECCIÓN DE SSO Y AUTO-LOGIN =================
+    window.addEventListener('DOMContentLoaded', async () => {
+      let ssoUser = null;
+      let ssoPass = null;
+      const hash = window.location.hash;
+
+      // 1. Verificar si viene el token SSO en el Hash (#sso=...)
+      if (hash && hash.includes('sso=')) {
+        try {
+          const rawToken = hash.split('sso=')[1].split('&')[0];
+          const decodedJson = decodeURIComponent(escape(atob(rawToken)));
+          const parsed = JSON.parse(decodedJson);
+
+          // Validez de 60 segundos para seguridad
+          if (Date.now() - parsed.t < 60000) {
+            ssoUser = parsed.u;
+            ssoPass = parsed.p;
+          }
+        } catch (e) {
+          console.warn("Token SSO no válido:", e);
+        }
+
+        // Limpiar inmediatamente el hash de la URL sin recargar
+        history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      }
+
+      // 2. Revisar si había una sesión previa en este navegador
+      let sesionGuardada = null;
+      try {
+        const raw = localStorage.getItem('sigep_session');
+        if (raw) sesionGuardada = JSON.parse(raw);
+      } catch (e) {
+        localStorage.removeItem('sigep_session');
+      }
+
+      // CASO A: Viene desde el Portal con nuevas credenciales
+      if (ssoUser && ssoPass) {
+        // Si la sesión anterior pertenecía a otro usuario, se elimina
+        if (sesionGuardada && sesionGuardada.authAccount !== ssoUser.toLowerCase()) {
+          localStorage.removeItem('sigep_session');
+          sesionGuardada = null;
+        }
+
+        // Si coincide con la sesión guardada activa, entrar directo
+        if (sesionGuardada && sesionGuardada.authAccount === ssoUser.toLowerCase()) {
+          usuarioActual = sesionGuardada.user;
+          colaboradores = sesionGuardada.data;
+          configurarInterfazUsuario();
+          document.getElementById('vista-login').classList.add('hidden');
+          document.getElementById('vista-panel').classList.remove('hidden');
+          inicializarSelects();
+          aplicarFiltros();
+          return;
+        }
+
+        // Si es usuario nuevo, rellenar y autenticar automáticamente
+        document.getElementById('login-user').value = ssoUser;
+        document.getElementById('login-pass').value = ssoPass;
+        await ejecutarLogin();
+        return;
+      }
+
+      // CASO B: Acceso directo con sesión guardada válida
+      if (sesionGuardada && sesionGuardada.user) {
+        usuarioActual = sesionGuardada.user;
+        colaboradores = sesionGuardada.data;
+        configurarInterfazUsuario();
+        document.getElementById('vista-login').classList.add('hidden');
+        document.getElementById('vista-panel').classList.remove('hidden');
+        inicializarSelects();
+        aplicarFiltros();
+      }
+    });
+
+
+    function inicializarSelects() {
+      const locales = [...new Set(colaboradores.map(c => c.empresa).filter(Boolean))];
+      const selectLocal = document.getElementById('filtro-local');
+      selectLocal.innerHTML = '<option value="">Todas las Sedes</option>' + locales.map(l => `<option value="${escapeHTML(l)}">${escapeHTML(l)}</option>`).join('');
+
+      const areas = [...new Set(colaboradores.map(c => c.area).filter(Boolean))];
+      const selectArea = document.getElementById('filtro-area');
+      selectArea.innerHTML = '<option value="">Todas las Áreas</option>' + areas.map(a => `<option value="${escapeHTML(a)}">${escapeHTML(a)}</option>`).join('');
+
+      const turnos = [...new Set(colaboradores.map(c => c.turno).filter(Boolean))];
+      const selectTurno = document.getElementById('filtro-turno');
+      selectTurno.innerHTML = '<option value="">Todos los Turnos</option>' + turnos.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+    }
+
+    function aplicarFiltros() {
+      const qNombre = document.getElementById('filtro-nombre').value.toLowerCase().trim();
+      const qDni = document.getElementById('filtro-dni').value.toLowerCase().trim();
+      const selLocal = document.getElementById('filtro-local').value;
+      const selArea = document.getElementById('filtro-area').value;
+      const selTurno = document.getElementById('filtro-turno').value;
+
+      const filtrados = colaboradores.filter(c => {
+        const coincideNombre = (c.nombreCompleto || "").toLowerCase().includes(qNombre);
+        const coincideDni = (c.dni || "").toLowerCase().includes(qDni);
+        const coincideLocal = selLocal ? c.empresa === selLocal : true;
+        const coincideArea = selArea ? c.area === selArea : true;
+        const coincideTurno = selTurno ? c.turno === selTurno : true;
+        return coincideNombre && coincideDni && coincideLocal && coincideArea && coincideTurno;
+      });
+
+      renderizarTabla(filtrados);
+    }
+
+    function escapeHTML(str) {
+      return String(str || '').replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    function renderizarTabla(datos) {
+      const tbody = document.getElementById('tabla-cuerpo');
+      tbody.innerHTML = "";
+      document.getElementById('contador-total').innerText = datos.length;
+
+      if (datos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-12 text-center text-slate-400">No se encontraron colaboradores bajo los criterios de búsqueda.</td></tr>`;
+        return;
+      }
+
+      datos.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-indigo-50/20 transition border-b border-crema-200";
+        tr.innerHTML = `
+          <td class="px-6 py-3.5 font-mono text-slate-700 font-semibold">${escapeHTML(row.dni)}</td>
+          <td class="px-6 py-3.5 font-bold text-slate-800">${escapeHTML(row.nombres)}</td>
+          <td class="px-6 py-3.5 font-bold text-slate-800">${escapeHTML(row.apellidos)}</td>
+          <td class="px-6 py-3.5 font-semibold text-indigo-900">${escapeHTML(row.empresa)}</td>
+          <td class="px-6 py-3.5 text-slate-600">${escapeHTML(row.area)}</td>
+          <td class="px-6 py-3.5 text-slate-600">${escapeHTML(row.turno)}</td>
+          <td class="px-6 py-3.5 text-center">
+            <button onclick="verFicha('${row.id}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-xs transition border border-indigo-200/60">
+              Ver Ficha
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function verFicha(id) {
+      colaboradorSeleccionado = colaboradores.find(c => String(c.id) === String(id));
+      if (!colaboradorSeleccionado) return;
+
+      const reg = colaboradorSeleccionado;
+
+      // Aplicar logo y fondo adaptativo según el local del colaborador
+      const confColab = obtenerConfigLogo(reg.empresa);
+      const contLogoModal = document.getElementById('modal-logo-container');
+      contLogoModal.className = `w-14 sm:w-16 h-14 sm:h-16 rounded-2xl ${confColab.bg} border ${confColab.border} flex items-center justify-center p-2 sm:p-2.5 shadow-sm shrink-0`;
+      document.getElementById('m-logo').src = confColab.url;
+
+      document.getElementById('m-nombre').innerText = reg.nombreCompleto;
+      document.getElementById('m-dni').innerText = reg.dni;
+      document.getElementById('m-empresa').innerText = reg.empresa;
+      document.getElementById('m-fecha').innerText = `Registro: ${reg.marcaTemporal}`;
+      document.getElementById('m-area').innerText = reg.area;
+      document.getElementById('m-turno').innerText = reg.turno;
+      document.getElementById('m-transporte').innerText = reg.transporte;
+      document.getElementById('m-estudia').innerText = reg.estudia;
+
+      document.getElementById('m-direccion').innerText = reg.direccion;
+      document.getElementById('m-vive').innerText = reg.viveCon;
+      document.getElementById('m-vivienda').innerText = reg.vivienda;
+      document.getElementById('m-servicios').innerText = reg.servicios;
+
+      document.getElementById('m-apoyo').innerText = reg.apoyoFamiliar;
+      document.getElementById('m-detalle-apoyo').innerText = reg.detalleApoyo !== "-" ? `"${reg.detalleApoyo}"` : "Sin comentarios adicionales";
+      document.getElementById('m-afecta').innerText = reg.afectaEstudios;
+      document.getElementById('m-detalle-afecta').innerText = reg.detalleAfecta !== "-" ? `"${reg.detalleAfecta}"` : "Sin comentarios adicionales";
+      document.getElementById('m-tipoapoyo').innerText = reg.tipoApoyo;
+      document.getElementById('m-visita').innerText = reg.infoVisita;
+
+      const modal = document.getElementById('modal-ficha');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function cerrarModal() {
+      const modal = document.getElementById('modal-ficha');
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+    }
+
+    // IMPRESIÓN / GENERACIÓN DE PDF CORPORATIVO
+    function imprimirFichaDirecta() {
+      if (!colaboradorSeleccionado) return;
+
+      const confColab = obtenerConfigLogo(colaboradorSeleccionado.empresa);
+      const rutaLogoAbsoluta = new URL(confColab.url, window.location.href).href;
+
+      const imgFicha = document.getElementById('m-logo');
+      const srcOriginal = imgFicha.src;
+      imgFicha.src = rutaLogoAbsoluta;
+
+      const fichaHtml = document.getElementById('ficha-printable-content').innerHTML;
+      imgFicha.src = srcOriginal;
+
+      const ventanaImpresion = window.open('', '_blank', 'width=900,height=950');
+      ventanaImpresion.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8">
+          <title>Expediente - ${escapeHTML(colaboradorSeleccionado.nombreCompleto)}</title>
+          <script src="https://cdn.tailwindcss.com"><\/script>
+          <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+          <style>
+            body { 
+              font-family: "Plus Jakarta Sans", sans-serif; 
+              background: #ffffff !important; 
+              color: #0f172a; 
+              padding: 0;
+              margin: 0;
+            }
+            @page { 
+              margin: 14mm 16mm; 
+              size: A4 portrait; 
+            }
+          </style>
+        </head>
+        <body>
+          <div class="max-w-3xl mx-auto">
+            ${fichaHtml}
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 400);
+            };
+          <\/script>
+        </body>
+        </html>
+      `);
+      ventanaImpresion.document.close();
+    }
+  </script>
+</body>
+</html>
